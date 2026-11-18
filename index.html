@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>얘들아 이제는 진짜 정해야해</title>
+  <meta name="description" content="링크 하나로 모두가 되는 날을 찾아 주는 일정 맞추기 서비스">
+  <meta property="og:title" content="얘들아 이제는 진짜 정해야해">
+  <meta property="og:description" content="안 되는 날만 콕콕. 모두가 되는 날은 자동으로 찾아 드려요.">
+  <meta name="theme-color" content="#2b56c9">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='8' width='56' height='52' rx='12' fill='%232b56c9'/%3E%3Crect x='4' y='8' width='56' height='16' rx='12' fill='%231d3f9e'/%3E%3Ctext x='32' y='52' font-size='30' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3E!%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-in">
+      <a href="#/" class="logo" aria-label="얘들아 이제는 진짜 정해야해 홈"><span class="logo-mark" aria-hidden="true">!</span><span class="logo-t">얘들아 이제는 진짜 <span class="q">정해야해</span></span></a>
+      <nav id="nav" class="nav"></nav>
+    </div>
+  </header>
+  <div id="demoBar" class="demobar" hidden>
+    데모 모드: 이 브라우저에만 저장되고, 구글 로그인은 테스트 계정으로 대신해요. 실제 서비스 연결 방법은 README를 참고하세요.
+  </div>
+  <main id="app" class="wrap" tabindex="-1">
+    <div class="empty">불러오는 중…</div>
+  </main>
+  <footer class="foot">
+    <div class="wrap foot-in">
+      <span>© 얘들아 이제는 진짜 정해야해</span>
+      <a href="#/terms">이용약관</a>
+      <a href="#/privacy">개인정보 처리방침</a>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js?v=2"></script>
+  <script src="js/backend.js?v=2"></script>
+  <script src="js/dates.js?v=2"></script>
+  <script src="js/app.js?v=2"></script>
+</body>
+</html>
