@@ -69,7 +69,9 @@
         const { data } = await sb.auth.getSession();
         user = nameOf(data.session && data.session.user);
         // 링크의 code 를 다른 브라우저에서 열면 교환이 실패한다 (요청한 브라우저에만 열쇠가 있음)
-        if (hadCode && !user && !urlError) urlError = '메일 링크는 요청한 브라우저에서 열어야 해요. 그 브라우저에서 다시 열거나 새로 요청해 주세요.';
+        if (hadCode && !user && !urlError) urlError = recovery || /reset/.test(localStorage.getItem(RETURN_KEY) || '')
+          ? '비밀번호 재설정 링크는 재설정을 요청한 브라우저에서 열어야 해요. 그 브라우저에서 다시 열거나 새로 요청해 주세요.'
+          : '이메일 인증이 끝났어요. 이 브라우저에서는 로그인만 하면 돼요.';
         if (/[?&](code|error)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
         return user;
       },

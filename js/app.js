@@ -196,7 +196,8 @@
         if (r.needsConfirm) {
           setPage(h('div', { class: 'auth' }, h('div', { class: 'panel' },
             h('h1', { text: '메일함을 확인해 주세요' }),
-            h('p', {}, h('b', { text: em }), ' 주소로 인증 메일을 보냈어요. 메일의 링크를 누르면 가입이 끝나요.'),
+            h('p', {}, h('b', { text: em }), ' 주소로 인증 메일을 보냈어요. 메일의 "이메일 인증하기" 버튼을 누르면 가입이 끝나요.'),
+            h('p', { class: 'hint', text: '이 브라우저에서 누르면 바로 로그인되고, 휴대폰 등 다른 기기에서 눌렀다면 인증 후 이 화면에서 로그인하면 돼요.' }),
             h('p', { class: 'hint', text: '메일이 안 보이면 스팸함도 확인해 주세요.' }),
             h('a', { class: 'btn', href: '#/login' }, '로그인 화면으로'))));
         } else { me = B.currentUser(); renderNav(); afterLogin(); }

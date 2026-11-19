@@ -28,9 +28,10 @@ supabase/schema.sql 데이터베이스 테이블, 보안 규칙(RLS), 함수
 | 코드 | https://github.com/lokiju234-stack/jinjja-jeonghae (main에 push하면 Vercel이 자동 배포) |
 | Supabase 프로젝트 | `jinjja-jeonghae` (ref `sghwlbpksndwwqoinukt`, 도쿄 리전) |
 | Google Cloud 프로젝트 | `jinjja-jeonghae` (OAuth 클라이언트 `jinjja-jeonghae web`, 프로덕션 게시됨) |
-| 로그인 | 이메일(인증 메일 확인 꺼 둠), Google |
+| 로그인 | 이메일(인증 메일 확인 켜짐), Google |
+| 메일 발송 | Gmail SMTP (codasoundcrew@gmail.com, 앱 비밀번호, 하루 약 500통), 한국어 템플릿 |
 
-> 이메일 인증 확인(Confirm email)은 Supabase 기본 메일이 팀원 주소로만 발송되기 때문에 꺼 두었습니다. 정식 공개 전에 자체 SMTP(예: Resend)를 연결하고 다시 켜세요.
+> 메일은 Gmail SMTP로 보냅니다. 하루 발송량이 많아지면 도메인을 구입해 Resend 등으로 옮기세요. Supabase 기본 발송 한도는 시간당 30통이며 Authentication > Rate Limits 에서 조정합니다.
 
 ---
 
