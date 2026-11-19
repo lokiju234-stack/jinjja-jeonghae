@@ -19,6 +19,19 @@ js/app.js           화면과 라우팅 (#/login, #/signup, #/new, #/e/코드 �
 supabase/schema.sql 데이터베이스 테이블, 보안 규칙(RLS), 함수
 ```
 
+
+## 현재 운영 정보
+
+| 항목 | 값 |
+|---|---|
+| 사이트 | https://jinjja-jeonghae.vercel.app |
+| 코드 | https://github.com/lokiju234-stack/jinjja-jeonghae (main에 push하면 Vercel이 자동 배포) |
+| Supabase 프로젝트 | `jinjja-jeonghae` (ref `sghwlbpksndwwqoinukt`, 도쿄 리전) |
+| Google Cloud 프로젝트 | `jinjja-jeonghae` (OAuth 클라이언트 `jinjja-jeonghae web`, 프로덕션 게시됨) |
+| 로그인 | 이메일(인증 메일 확인 꺼 둠), Google |
+
+> 이메일 인증 확인(Confirm email)은 Supabase 기본 메일이 팀원 주소로만 발송되기 때문에 꺼 두었습니다. 정식 공개 전에 자체 SMTP(예: Resend)를 연결하고 다시 켜세요.
+
 ---
 
 ## 1. 지금 바로 써 보기 (데모 모드)
