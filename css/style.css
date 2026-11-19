@@ -226,3 +226,14 @@ table.mx{border-collapse:separate;border-spacing:0;font-size:12px;min-width:100%
 .logo-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .logo{min-width:0;font-size:21px}
 @media (max-width:560px){.logo{font-size:16px;gap:6px}.logo-mark{width:24px;height:24px;font-size:15px}.nav a.btn.ghost[href="#/"]{display:none}.nav .who{display:none}}
+.legal h2{font-size:18px;margin:0 0 6px}
+.legal .legal-sec{display:grid;gap:6px;padding-top:6px;border-top:1px solid var(--line)}
+.legal ol,.legal ul{margin:0;padding-left:22px;display:grid;gap:4px}
+.legal li,.legal p{line-height:1.7;margin:0}
+.legal-toc{display:flex;flex-wrap:wrap;gap:6px}
+.legal-toc a{font-size:12.5px;padding:4px 10px;border-radius:999px;background:var(--sunk);border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.legal-table{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+.legal-table table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+.legal-table th,.legal-table td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line);white-space:pre-line}
+.legal-table th{background:var(--sunk);font-weight:600;white-space:nowrap}
+.legal-table tr:last-child td{border-bottom:0}

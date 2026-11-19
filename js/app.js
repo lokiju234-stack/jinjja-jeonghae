@@ -948,27 +948,25 @@
 
   // ───────── legal (초안) ─────────
   function viewLegal(kind) {
-    const terms = [
-      ['제1조 (목적)', '이 약관은 "얘들아 이제는 진짜 정해야해"(이하 서비스)가 제공하는 모임 일정 조율 기능의 이용 조건을 정합니다.'],
-      ['제2조 (회원가입)', '만 14세 이상 누구나 구글 계정 또는 이메일로 가입할 수 있습니다. 타인의 정보를 도용해 가입할 수 없습니다.'],
-      ['제3조 (서비스 이용)', '방장은 일정을 만들고 링크로 공유할 수 있으며, 링크를 받은 회원은 자신의 가능 여부를 표시할 수 있습니다. 링크를 아는 회원은 해당 일정의 응답을 볼 수 있습니다.'],
-      ['제4조 (금지 행위)', '서비스를 이용해 타인을 괴롭히거나, 불법 정보를 게시하거나, 서비스 운영을 방해해서는 안 됩니다.'],
-      ['제5조 (탈퇴 및 데이터 삭제)', '회원은 언제든 탈퇴를 요청할 수 있으며, 탈퇴 시 회원이 만든 일정과 응답은 삭제됩니다.'],
-      ['제6조 (책임의 한계)', '서비스는 일정 조율을 돕는 도구이며, 실제 모임 진행과 관련한 회원 간 분쟁에 대해 책임지지 않습니다.'],
-    ];
-    const privacy = [
-      ['수집하는 정보', '이메일 주소, 이름(표시 이름), 구글 로그인 시 구글이 제공하는 기본 프로필(이름, 이메일), 회원이 입력한 일정 응답과 메모.'],
-      ['이용 목적', '회원 식별과 로그인, 일정 생성과 공유, 응답 집계 및 추천 날짜 계산.'],
-      ['보관 기간', '회원 탈퇴 시까지 보관하며, 탈퇴하면 지체 없이 삭제합니다. 법령에 따라 보관이 필요한 경우 그 기간 동안 보관합니다.'],
-      ['제3자 제공', '법령에 근거가 있는 경우를 제외하고 개인정보를 제3자에게 제공하지 않습니다.'],
-      ['처리 위탁', '데이터 저장과 인증을 위해 Supabase(클라우드 데이터베이스)와 Google(로그인)을 이용합니다.'],
-      ['문의', '개인정보 관련 문의: (운영자 이메일을 적어 주세요)'],
-    ];
-    const items = kind === 'terms' ? terms : privacy;
+    const doc = (window.EB_LEGAL || {})[kind];
+    if (!doc) { setPage(h('div', { class: 'empty', text: '문서를 불러오지 못했어요. 새로고침해 주세요.' })); return; }
+    const block = b => {
+      if (typeof b === 'string') return h('p', { text: b });
+      if (b.ol) return h('ol', {}, b.ol.map(t => h('li', { text: t })));
+      if (b.ul) return h('ul', {}, b.ul.map(t => h('li', { text: t })));
+      if (b.table) return h('div', { class: 'legal-table' }, h('table', {},
+        h('thead', {}, h('tr', {}, b.table.head.map(t => h('th', { text: t })))),
+        h('tbody', {}, b.table.rows.map(r => h('tr', {}, r.map(c => h('td', { text: c })))))));
+      return null;
+    };
+    const other = kind === 'terms' ? ['privacy', '개인정보 처리방침'] : ['terms', '이용약관'];
     setPage(h('article', { class: 'panel legal' },
-      h('div', { class: 'banner', text: '초안입니다. 정식 출시 전에 운영자 정보와 함께 법률 검토를 받아 수정하세요.' }),
-      h('h1', { text: kind === 'terms' ? '이용약관' : '개인정보 처리방침' }),
-      items.map(([t, p]) => [h('h2', { text: t }), h('p', { text: p })])));
+      h('div', {}, h('div', { class: 'eyebrow', text: `시행일 ${doc.effective}` }), h('h1', { text: doc.title })),
+      h('p', { class: 'sub', text: doc.intro }),
+      h('nav', { class: 'legal-toc', 'aria-label': '목차' },
+        doc.sections.map((s, i) => h('a', { href: `#/${kind}`, onclick: e => { e.preventDefault(); document.getElementById('sec-' + i)?.scrollIntoView({ behavior: 'smooth' }); } }, s.h))),
+      doc.sections.map((s, i) => h('section', { id: 'sec-' + i, class: 'legal-sec' }, h('h2', { text: s.h }), s.body.map(block))),
+      h('p', { class: 'hint' }, h('a', { href: '#/' + other[0] }, other[1] + ' 보기'))));
   }
 
   // ───────── router ─────────
