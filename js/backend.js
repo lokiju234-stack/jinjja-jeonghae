@@ -43,8 +43,20 @@
     const listeners = new Set();
     const baseUrl = () => location.origin + location.pathname;
 
+    // 메일 링크로 들어온 경우를 기억 (앱이 리스너를 붙이기 전에 이벤트가 먼저 올 수 있음)
+    let recovery = /[?&#]type=recovery/.test(location.href);
+    let urlError = null;
+    {
+      const q = new URLSearchParams(location.search + '&' + location.hash.replace(/^#/, ''));
+      const desc = q.get('error_description') || q.get('error');
+      if (desc) urlError = /expired|invalid/i.test(desc)
+        ? '메일 링크가 만료됐거나 이미 사용됐어요. 다시 요청해 주세요.'
+        : '메일 링크로 로그인하지 못했어요: ' + desc;
+    }
+
     sb.auth.onAuthStateChange((event, session) => {
       user = nameOf(session && session.user);
+      if (event === 'PASSWORD_RECOVERY') recovery = true;
       listeners.forEach(fn => fn(event, user));
     });
 
@@ -53,11 +65,16 @@
     return {
       mode: 'supabase',
       async init() {
+        const hadCode = /[?&]code=/.test(location.search);
         const { data } = await sb.auth.getSession();
         user = nameOf(data.session && data.session.user);
+        // 링크의 code 를 다른 브라우저에서 열면 교환이 실패한다 (요청한 브라우저에만 열쇠가 있음)
+        if (hadCode && !user && !urlError) urlError = '메일 링크는 요청한 브라우저에서 열어야 해요. 그 브라우저에서 다시 열거나 새로 요청해 주세요.';
         if (/[?&](code|error)=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
         return user;
       },
+      wasRecovery: () => recovery,
+      urlError: () => urlError,
       currentUser: () => user,
       onAuthChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
 

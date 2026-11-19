@@ -244,7 +244,13 @@
       if (pw.value.length < 8) { err.textContent = '비밀번호는 8자 이상이어야 해요.'; err.hidden = false; return; }
       if (pw.value !== pw2.value) { err.textContent = '비밀번호가 서로 달라요.'; err.hidden = false; return; }
       submit.disabled = true;
-      try { await B.updatePassword(pw.value); go('#/'); }
+      try {
+        await B.updatePassword(pw.value);
+        setPage(h('div', { class: 'auth' }, h('div', { class: 'panel' },
+          h('h1', { text: '비밀번호를 바꿨어요' }),
+          h('p', { class: 'sub', text: '다음 로그인부터 새 비밀번호를 쓰면 돼요.' }),
+          h('a', { class: 'btn primary', href: '#/' }, '내 일정으로'))));
+      }
       catch (ex) { err.textContent = ex.message; err.hidden = false; submit.disabled = false; }
     });
     setPage(h('div', { class: 'auth' }, form));
@@ -256,7 +262,9 @@
     setPage(
       h('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-end' },
         h('div', {}, h('div', { class: 'eyebrow', text: '내 일정' }), h('h1', { text: `${me.name}님, 언제 볼까요?` })),
-        h('a', { class: 'btn primary', href: '#/new' }, '+ 새 일정 만들기')),
+        h('div', { class: 'row' },
+          me.provider === 'email' ? h('a', { class: 'btn small ghost', href: '#/reset' }, '비밀번호 바꾸기') : null,
+          h('a', { class: 'btn primary', href: '#/new' }, '+ 새 일정 만들기'))),
       list);
     let rows;
     try { rows = await B.myEvents(); }
@@ -378,6 +386,7 @@
     const linkInput = h('input', { type: 'text', readonly: true, id: 'share-link', value: shareUrl(code), 'aria-label': '공유 링크', onfocus: e => e.target.select() });
     const copyLinkBtn = h('button', { class: 'btn primary', type: 'button', onclick: () => copyText(shareUrl(code), copyLinkBtn, linkInput) }, '링크 복사');
     const ownerBox = h('div', { class: 'row' });
+    const editBox = h('div', { hidden: true });
     const titleEl = h('h1', { text: ev.title });
     const metaEl = h('div', { class: 'sub' });
     const descEl = h('p', { class: 'ev-desc' });
@@ -416,7 +425,7 @@
         descEl,
         h('div', { class: 'share' }, linkInput, copyLinkBtn),
         h('p', { class: 'hint', text: '링크를 받은 사람은 로그인(구글 또는 이메일) 후 자기 일정을 표시할 수 있어요.' }),
-        ownerBox),
+        ownerBox, editBox),
       closedBanner,
       h('div', { class: 'cols' },
         h('section', { class: 'panel', 'aria-labelledby': 'h-mine' },
@@ -477,6 +486,7 @@
       };
       ownerBox.append(
         h('span', { class: 'badge host', text: '방장 메뉴' }),
+        h('button', { class: 'btn small', type: 'button', onclick: openEdit }, '일정 수정'),
         h('button', {
           class: 'btn small', type: 'button', onclick: async e => {
             e.target.disabled = true;
@@ -485,6 +495,51 @@
           }
         }, S.ev.closed ? '다시 열기' : '응답 마감하기'),
         del);
+    }
+
+    // ── 방장: 일정 수정 (이름, 설명, 날짜 범위, 길이)
+    function openEdit() {
+      if (!editBox.hidden) { editBox.hidden = true; return; }
+      let n = S.ev.default_nights;
+      const t = h('input', { type: 'text', id: 'ed-title', maxlength: '60', value: S.ev.title });
+      const ds = h('textarea', { id: 'ed-desc', rows: '2', maxlength: '500', value: S.ev.description || '' });
+      const st = h('input', { type: 'date', id: 'ed-start', value: S.ev.start_date });
+      const en = h('input', { type: 'date', id: 'ed-end', value: S.ev.end_date });
+      const seg = h('div', { class: 'seg', role: 'group', 'aria-label': '일정 길이' });
+      const drawSeg = () => seg.replaceChildren(...LEN_LABEL.map((l, i) => h('button', { type: 'button', 'aria-pressed': String(i === n), onclick: () => { n = i; drawSeg(); } }, l)));
+      drawSeg();
+      const err = h('p', { class: 'err-text', hidden: true });
+      const save = h('button', { class: 'btn primary small', type: 'submit' }, '저장');
+      const form = h('form', { class: 'panel', novalidate: true, style: 'background:var(--sunk)' },
+        h('h3', { text: '일정 수정' }),
+        h('label', { class: 'f' }, '일정 이름', t),
+        h('label', { class: 'f' }, '설명', ds),
+        h('div', { class: 'grid2' }, h('label', { class: 'f' }, '시작일', st), h('label', { class: 'f' }, '종료일', en)),
+        h('div', { class: 'ctrls' }, h('span', { class: 'eyebrow', text: '일정 길이' }), seg),
+        h('p', { class: 'hint', text: '날짜 범위를 바꿔도 참여자가 이미 표시한 날짜는 그대로 남아요. 새로 들어온 날짜는 각자의 기본값(가능/불가)으로 계산돼요.' }),
+        err,
+        h('div', { class: 'row' }, save, h('button', { class: 'btn small ghost', type: 'button', onclick: () => { editBox.hidden = true; } }, '취소')));
+      form.addEventListener('submit', async e => {
+        e.preventDefault(); err.hidden = true;
+        const fail = m => { err.textContent = m; err.hidden = false; };
+        const title = t.value.trim();
+        if (!title) return fail('일정 이름을 입력해 주세요.');
+        if (!st.value || !en.value) return fail('시작일과 종료일을 골라 주세요.');
+        if (en.value < st.value) return fail('종료일이 시작일보다 빨라요.');
+        const span = D.list(st.value, en.value).length;
+        if (span > 93) return fail('기간은 최대 93일(약 3개월)까지 정할 수 있어요.');
+        if (span < n + 1) return fail(`${LEN_LABEL[n]} 일정을 넣기엔 기간이 짧아요.`);
+        save.disabled = true;
+        try {
+          await B.updateEvent(S.ev.id, { title, description: ds.value.trim(), start_date: st.value, end_date: en.value, default_nights: n });
+          store.set('eb-n-' + code, n);
+          B.notify(code);
+          if (/\/new$/.test(location.hash)) location.hash = '#/e/' + code; else route();
+        } catch (ex) { fail('저장하지 못했어요: ' + (ex.message || ex)); save.disabled = false; }
+      });
+      editBox.replaceChildren(form);
+      editBox.hidden = false;
+      t.focus();
     }
 
     // ── saving
@@ -871,7 +926,7 @@
       try {
         const [evNow, rows] = await Promise.all([B.getEvent(code), B.listResponses(code)]);
         if (!S.alive) return;
-        if (!evNow) { viewEvent(code, false); return; }
+        if (!evNow) { route(); return; }
         S.ev = evNow;
         ingest(rows || []);
         renderAll();
@@ -952,6 +1007,12 @@
       }
     });
     window.addEventListener('hashchange', route);
-    if (me && store.raw(window.EB.RETURN_KEY)) afterLogin(); else route();
+    const linkError = B.urlError && B.urlError();
+    if (linkError) {
+      bar.hidden = false; bar.textContent = linkError; bar.style.background = 'var(--no-soft)';
+      setTimeout(() => { bar.hidden = B.mode === 'supabase'; }, 12000);
+    }
+    if (me && B.wasRecovery && B.wasRecovery()) { store.del(window.EB.RETURN_KEY); go('#/reset'); }
+    else if (me && store.raw(window.EB.RETURN_KEY)) afterLogin(); else route();
   })();
 })();
