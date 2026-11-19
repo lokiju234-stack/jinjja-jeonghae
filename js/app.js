@@ -937,7 +937,9 @@
 
   // ───────── boot ─────────
   (async () => {
-    document.getElementById('demoBar').hidden = B.mode !== 'demo';
+    const bar = document.getElementById('demoBar');
+    bar.hidden = B.mode === 'supabase';
+    if (B.mode === 'offline') { bar.textContent = B.loadError; bar.style.background = 'var(--no-soft)'; }
     try { me = await B.init(); } catch { me = null; }
     renderNav();
     B.onAuthChange((event, user) => {

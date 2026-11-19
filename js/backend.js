@@ -262,9 +262,24 @@
     };
   }
 
-  const useSupabase = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
+  // 서버 설정은 있는데 Supabase 라이브러리를 못 불러온 경우(광고 차단, 네트워크 등):
+  // 데모로 몰래 넘어가지 않고, 모든 동작에서 원인을 알려 준다.
+  function offlineBackend() {
+    const msg = '서버 연결 도구를 불러오지 못했어요. 광고 차단 프로그램을 끄거나 새로고침해 주세요.';
+    const fail = async () => { throw new Error(msg); };
+    return {
+      mode: 'offline', loadError: msg,
+      async init() { return null; }, currentUser: () => null, onAuthChange() { return () => {}; },
+      signInGoogle: fail, signInEmail: fail, signUpEmail: fail, sendReset: fail, updatePassword: fail,
+      updateName: fail, signOut: async () => {}, createEvent: fail, getEvent: fail, myEvents: fail,
+      updateEvent: fail, deleteEvent: fail, listResponses: fail, saveMyResponse: fail,
+      saveProxyResponse: fail, deleteResponse: fail, subscribe() { return () => {}; }, notify() {},
+    };
+  }
+
+  const hasKeys = !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
   window.EB = window.EB || {};
   window.EB.RETURN_KEY = RETURN_KEY;
-  window.EB.backend = useSupabase ? supabaseBackend() : demoBackend();
+  window.EB.backend = !hasKeys ? demoBackend() : (window.supabase ? supabaseBackend() : offlineBackend());
   window.EB.newId = () => (crypto.randomUUID ? crypto.randomUUID() : undefined);
 })();
