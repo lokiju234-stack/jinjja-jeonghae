@@ -60,6 +60,8 @@
     let r = store.get(window.EB.RETURN_KEY, null);
     store.del(window.EB.RETURN_KEY);
     if (!r || /^#\/(login|signup|forgot)/.test(r)) r = '#/';
+    // 재설정 화면은 메일 링크로 들어온 경우에만 (예전에 요청만 해 두고 남은 기록은 무시)
+    if (r === '#/reset' && !(B.wasRecovery && B.wasRecovery())) r = '#/';
     go(r);
   }
 
@@ -226,7 +228,7 @@
         await B.sendReset(email.value.trim());
         msg.textContent = B.mode === 'demo' ? '데모 모드에서는 메일이 발송되지 않아요.' : '메일을 보냈어요. 받은 메일함을 확인해 주세요.';
         msg.hidden = false;
-      } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+      } catch (ex) { store.del(window.EB.RETURN_KEY); err.textContent = ex.message; err.hidden = false; }
       finally { submit.disabled = false; }
     });
     setPage(h('div', { class: 'auth' }, form));
