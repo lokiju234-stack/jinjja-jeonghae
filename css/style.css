@@ -486,3 +486,9 @@ ul.plain{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
 .dp-stamp.dates{position:static;justify-self:end;margin:-30px 10px 0 0;font-size:19px;z-index:2}
 .dp-rec{padding-right:10px}
 @media (max-width:420px){.dp-stamp.dates{margin-top:-22px;font-size:16px}}
+.install-card{display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.install-card img{border-radius:10px;flex:none}
+.install-card > div{display:grid;gap:2px;min-width:0;flex:1}
+.btn.kakao{background:#FEE500;color:#191919;border-color:#FEE500}
+.btn.kakao:hover{background:#f5dc00;border-color:#f5dc00}
+.btn.kakao svg{width:18px;height:18px}

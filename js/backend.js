@@ -10,7 +10,7 @@
     return {
       id: u.id,
       email: u.email || '',
-      name: (m.full_name || m.name || (u.email || '').split('@')[0] || '사용자').slice(0, 30),
+      name: (m.full_name || m.name || m.nickname || m.preferred_username || (u.email || '').split('@')[0] || '사용자').slice(0, 30),
       provider: (u.app_metadata && u.app_metadata.provider) || 'email',
     };
   }
@@ -32,7 +32,7 @@
     if (/Password should be at least|Password should contain|weak/i.test(m)) return '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요.';
     if (/reauthentication|Reauth/i.test(m)) return '보안을 위해 다시 로그인한 뒤 비밀번호를 바꿔 주세요.';
     if (/rate limit|too many/i.test(m)) return '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.';
-    if (/provider is not enabled/i.test(m)) return '구글 로그인이 아직 설정되지 않았어요. (Supabase > Authentication > Providers)';
+    if (/provider is not enabled/i.test(m)) return '이 로그인 방식은 아직 설정되지 않았어요.';
     return m || '알 수 없는 오류가 발생했어요.';
   }
 
@@ -91,6 +91,11 @@
           provider: 'google',
           options: { redirectTo: baseUrl(), queryParams: { prompt: 'select_account' } },
         });
+        if (error) throw new Error(friendlyAuthError(error));
+      },
+      async signInKakao(returnHash) {
+        try { localStorage.setItem(RETURN_KEY, JSON.stringify(returnHash || '#/')); } catch {}
+        const { error } = await sb.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: baseUrl() } });
         if (error) throw new Error(friendlyAuthError(error));
       },
       async signInEmail(email, password) {
@@ -274,6 +279,11 @@
       async signInGoogle() {
         let u = db.users.find(x => x.provider === 'google');
         if (!u) { u = { id: uuid(), email: 'google-demo@example.com', name: '구글 데모 사용자', provider: 'google' }; db.users.push(u); }
+        db.session = u.id; save(); emit('SIGNED_IN'); return delay(toUser(u));
+      },
+      async signInKakao() {
+        let u = db.users.find(x => x.provider === 'kakao');
+        if (!u) { u = { id: uuid(), email: '', name: '카카오 데모 사용자', provider: 'kakao' }; db.users.push(u); }
         db.session = u.id; save(); emit('SIGNED_IN'); return delay(toUser(u));
       },
       async signInEmail(email, password) {

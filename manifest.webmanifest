@@ -1,0 +1,16 @@
+{
+  "name": "얘들아 이제는 진짜 정해야해",
+  "short_name": "정해야해",
+  "description": "초대 링크 하나로 친구들과 날짜를 맞추고 일정표·준비물·정산·다이어리까지 함께 쓰는 여행 플래너",
+  "lang": "ko",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef2f6",
+  "theme_color": "#2b56c9",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

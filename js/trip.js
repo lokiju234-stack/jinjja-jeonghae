@@ -210,6 +210,7 @@
       const grid = h('div', { class: 'plan-grid' });
       const ideaBox = h('div');
       const copyBtn = h('button', { class: 'btn small', type: 'button' }, '일정표 텍스트 복사');
+      const icsBtn = h('button', { class: 'btn small', type: 'button', disabled: !ev.confirmed_start, title: ev.confirmed_start ? '' : '날짜가 확정되면 쓸 수 있어요' }, '휴대폰 캘린더에 넣기');
       const copyFb = h('textarea', { class: 'copybox', readonly: true, hidden: true, 'aria-label': '복사할 일정표' });
       mount(
         h('div', { class: 'panel' }, totalBox,
@@ -218,7 +219,10 @@
           h('div', { class: 'panel-head' }, h('h2', { text: '여행 뼈대' }), h('span', { class: 'hint', text: '예: 1~3일차 서울, 3~5일차 부산' })),
           h('p', { class: 'hint', text: '먼저 어느 날 어디에 있을지 구간을 함께 정하면, 아래 일정표가 구간별 색으로 묶여 보여요. 이동하는 날은 두 구간에 겹쳐 넣으면 돼요.' }),
           segBox),
-        grid, ideaBox, h('div', { class: 'row', style: 'justify-content:flex-end' }, copyBtn), copyFb);
+        grid, ideaBox,
+        h('div', { class: 'row', style: 'justify-content:flex-end' }, icsBtn, copyBtn),
+        h('p', { class: 'hint', style: 'text-align:right', text: ev.confirmed_start ? '캘린더에 넣으면 시간이 정해진 일정마다 30분 전에 알림이 와요.' : '날짜가 확정되면 일정표를 휴대폰 캘린더에 넣어 알림을 받을 수 있어요.' }),
+        copyFb);
       let items = [], segs = [];
       const openForms = new Set();
       let segFormOpen = false;
@@ -228,7 +232,30 @@
         if (!stale()) render();
       }
       refresh = () => { if (!openForms.size && !segFormOpen) load(); };
-      const sorted = arr => arr.slice().sort((a, b) => ((a.start_time || '99') > (b.start_time || '99') ? 1 : (a.start_time || '99') < (b.start_time || '99') ? -1 : a.sort - b.sort));
+      const sorted = arr => arr.slice().sort((a, b) => a.sort - b.sort);
+      // 시간이 있으면 같은 날 일정 중 시간 순서에 맞는 자리, 없으면 맨 뒤
+      function placeSort(dayIdx, time, selfId) {
+        const arr = sorted(items.filter(x => (dayIdx == null ? (x.day_index == null || x.day_index >= days) : x.day_index === dayIdx) && x.id !== selfId));
+        if (!arr.length) return Date.now();
+        if (!time) return arr[arr.length - 1].sort + 1000;
+        const i = arr.findIndex(x => x.start_time && x.start_time.slice(0, 5) > time);
+        if (i === -1) return arr[arr.length - 1].sort + 1000;
+        if (i === 0) return arr[0].sort - 1000;
+        return (arr[i - 1].sort + arr[i].sort) / 2;
+      }
+      async function nudge(x, dir) {
+        const arr = sorted(items.filter(y => (x.day_index == null || x.day_index >= days) ? (y.day_index == null || y.day_index >= days) : y.day_index === x.day_index));
+        const i = arr.findIndex(y => y.id === x.id), j = i + dir;
+        if (j < 0 || j >= arr.length) return;
+        const other = arr[j];
+        let a = other.sort, b = x.sort;
+        if (a === b) { a = x.sort + dir; }
+        try {
+          Object.assign(x, await B.update('plan_items', x.id, { sort: a }));
+          Object.assign(other, await B.update('plan_items', other.id, { sort: b }));
+          notify(); render();
+        } catch {}
+      }
       const segRange = sg => sg.start_day === sg.end_day ? `${sg.start_day + 1}일차` : `${sg.start_day + 1}~${sg.end_day + 1}일차`;
       const segDates = sg => (ev.confirmed_start ? ' · ' + (sg.start_day === sg.end_day ? D.short(dayDate(sg.start_day)) : `${D.short(dayDate(sg.start_day))}~${D.short(dayDate(sg.end_day))}`) : '');
       const visSegs = () => segs.filter(sg => sg.start_day < days).map(sg => ({ ...sg, end_day: Math.min(sg.end_day, days - 1) }))
@@ -358,7 +385,7 @@
         move.onchange = async () => {
           if (!move.value) return;
           const di = move.value === 'idea' ? null : parseInt(move.value, 10);
-          try { const u = await B.update('plan_items', x.id, { day_index: di }); Object.assign(x, u); notify(); render(); } catch { move.value = ''; }
+          try { const u = await B.update('plan_items', x.id, { day_index: di, sort: placeSort(di, x.start_time && x.start_time.slice(0, 5), x.id) }); Object.assign(x, u); notify(); render(); } catch { move.value = ''; }
         };
         const editBox = h('div');
         const edit = h('button', { class: 'btn small ghost', type: 'button', onclick: () => { editBox.replaceChildren(itemForm(x, x.day_index, editBox)); } }, '수정');
@@ -376,7 +403,10 @@
                 x.cost ? h('span', { text: won(x.cost) }) : null,
                 x.memo ? h('span', { class: 'memo', text: x.memo }) : null,
                 link ? h('a', { href: link, target: '_blank', rel: 'noopener noreferrer nofollow' }, '링크') : null) : null),
-            h('div', { class: 'item-actions' }, edit, move, del)),
+            h('div', { class: 'item-actions' },
+              h('button', { class: 'btn small ghost', type: 'button', 'aria-label': '위로', title: '위로', onclick: () => nudge(x, -1) }, '▲'),
+              h('button', { class: 'btn small ghost', type: 'button', 'aria-label': '아래로', title: '아래로', onclick: () => nudge(x, 1) }, '▼'),
+              edit, move, del)),
           editBox);
         return row;
       }
@@ -413,14 +443,49 @@
           const row = { title, start_time: tm.value || null, category: cat.value, place: pl.value.trim(), cost, memo: mm.value.trim(), link };
           save.disabled = true;
           try {
-            if (x) Object.assign(x, await B.update('plan_items', x.id, row));
-            else items.push(await B.insert('plan_items', { ...row, event_id: ev.id, day_index: dayIdx, sort: Date.now() }));
+            const timeChanged = x && (x.start_time || '').slice(0, 5) !== (row.start_time || '');
+            if (x) Object.assign(x, await B.update('plan_items', x.id, timeChanged ? { ...row, sort: placeSort(x.day_index, row.start_time, x.id) } : row));
+            else items.push(await B.insert('plan_items', { ...row, event_id: ev.id, day_index: dayIdx, sort: placeSort(dayIdx, row.start_time) }));
             notify(); openForms.delete(f); render();
           } catch (ex) { err.textContent = '저장하지 못했어요: ' + ex.message; err.hidden = false; save.disabled = false; }
         });
         setTimeout(() => ttl.focus(), 0);
         return f;
       }
+      icsBtn.onclick = () => {
+        if (!ev.confirmed_start) return;
+        const esc = t => String(t || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+        const ymd = iso => iso.replace(/-/g, '');
+        const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+        const fold = line => { const out = []; let cur = line; while (new TextEncoder().encode(cur).length > 73) { let cut = 73; while (new TextEncoder().encode(cur.slice(0, cut)).length > 73) cut--; out.push(cur.slice(0, cut)); cur = ' ' + cur.slice(cut); } out.push(cur); return out.join('\r\n'); };
+        const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//jinjja-jeonghae//ko', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:' + esc(ev.title), 'X-WR-TIMEZONE:Asia/Seoul'];
+        for (const sg of visSegs()) {
+          L.push('BEGIN:VEVENT', `UID:seg-${sg.id}@jinjja-jeonghae`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${ymd(dayDate(sg.start_day))}`, `DTEND;VALUE=DATE:${ymd(D.addDays(dayDate(sg.end_day), 1))}`,
+            `SUMMARY:${esc('📍 ' + sg.name + ' · ' + ev.title)}`, 'TRANSP:TRANSPARENT', 'END:VEVENT');
+        }
+        for (const x of items.filter(y => y.day_index != null && y.day_index < days)) {
+          const date = dayDate(x.day_index);
+          L.push('BEGIN:VEVENT', `UID:item-${x.id}@jinjja-jeonghae`, `DTSTAMP:${stamp}`);
+          if (x.start_time) {
+            const [hh, mm] = x.start_time.slice(0, 5).split(':').map(Number);
+            const endH = (hh + 1) % 24, endDate = hh === 23 ? D.addDays(date, 1) : date;
+            L.push(`DTSTART;TZID=Asia/Seoul:${ymd(date)}T${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}00`,
+              `DTEND;TZID=Asia/Seoul:${ymd(endDate)}T${String(endH).padStart(2, '0')}${String(mm).padStart(2, '0')}00`,
+              'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(x.title)}`, 'TRIGGER:-PT30M', 'END:VALARM');
+          } else {
+            L.push(`DTSTART;VALUE=DATE:${ymd(date)}`, `DTEND;VALUE=DATE:${ymd(D.addDays(date, 1))}`);
+          }
+          L.push(`SUMMARY:${esc(x.title)}`);
+          if (x.place) L.push(`LOCATION:${esc(x.place)}`);
+          const desc = [CATS[x.category], x.cost ? won(x.cost) : '', x.memo, safeUrl(x.link)].filter(Boolean).join(' · ');
+          L.push(`DESCRIPTION:${esc(desc + (desc ? '\n' : '') + '[' + ev.title + '] ' + shareUrl(code))}`, 'END:VEVENT');
+        }
+        L.push('END:VCALENDAR');
+        const blob = new Blob([L.map(fold).join('\r\n') + '\r\n'], { type: 'text/calendar;charset=utf-8' });
+        const a = h('a', { href: URL.createObjectURL(blob), download: `${ev.title.replace(/[\\/:*?"<>|]/g, '')}.ics` });
+        document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        icsBtn.textContent = '파일을 열어 캘린더에 추가하세요'; setTimeout(() => { icsBtn.textContent = '휴대폰 캘린더에 넣기'; }, 3000);
+      };
       copyBtn.onclick = () => {
         const lines = [`[${ev.title}] 일정표 (${D.tripSummary(ev).label})`];
         const vs = visSegs();

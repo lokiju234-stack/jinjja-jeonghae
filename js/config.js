@@ -4,5 +4,7 @@
 // service_role 키는 절대 여기에 넣지 마세요.
 window.EB_CONFIG = {
   SUPABASE_URL: 'https://sghwlbpksndwwqoinukt.supabase.co',
+  // 카카오 로그인: 카카오 개발자 앱과 Supabase 설정을 마친 뒤 true 로 바꾸세요.
+  KAKAO_LOGIN: false,
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnaHdsYnBrc25kd3dxb2ludWt0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5ODI5ODYsImV4cCI6MjExMDU1ODk4Nn0.gndPmvWlCmZv2lfxyk9KyB2yIjgSx6j51w69spkt7qw',
 };

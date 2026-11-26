@@ -11,6 +11,27 @@
   let me = null;
   let cleanups = [];
   const addCleanup = fn => cleanups.push(fn);
+  // 홈 화면 앱 설치 (안드로이드·PC 크롬은 설치 버튼, 아이폰은 안내)
+  let installEvt = null;
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; document.querySelectorAll('.install-slot').forEach(drawInstall); });
+  window.addEventListener('appinstalled', () => { installEvt = null; document.querySelectorAll('.install-slot').forEach(drawInstall); });
+  function drawInstall(slot) {
+    slot.replaceChildren();
+    if (isStandalone()) return;
+    if (installEvt) {
+      slot.append(h('div', { class: 'install-card' },
+        h('img', { src: 'img/icon-192.png', alt: '', width: '40', height: '40' }),
+        h('div', {}, h('b', { text: '홈 화면에 앱으로 추가하기' }), h('span', { class: 'hint', text: '앱처럼 바로 열고, 주소창 없이 넓게 써요.' })),
+        h('button', { class: 'btn primary small', type: 'button', onclick: async () => { const ev = installEvt; installEvt = null; ev.prompt(); try { await ev.userChoice; } catch {} drawInstall(slot); } }, '추가')));
+    } else if (isIOS && !store.get('eb-ios-tip-off', false)) {
+      slot.append(h('div', { class: 'install-card' },
+        h('img', { src: 'img/icon-192.png', alt: '', width: '40', height: '40' }),
+        h('div', {}, h('b', { text: '아이폰 홈 화면에 추가하기' }), h('span', { class: 'hint', text: 'Safari 아래쪽 공유 버튼(□↑) → "홈 화면에 추가"를 누르면 앱처럼 쓸 수 있어요.' })),
+        h('button', { class: 'btn ghost small', type: 'button', onclick: () => { store.set('eb-ios-tip-off', true); drawInstall(slot); } }, '닫기')));
+    }
+  }
   let navToken = 0;     // 화면이 바뀌면 증가 — 늦게 도착한 비동기 결과를 버리기 위함
   let localAuth = 0;    // 이 화면에서 직접 로그인/로그아웃 중이면 auth 이벤트로 다시 이동하지 않음
   async function withAuth(fn) { localAuth++; try { return await fn(); } finally { localAuth--; } }
@@ -49,6 +70,7 @@
     const fallback = () => { if (fallbackEl) { fallbackEl.hidden = false; fallbackEl.value = text; fallbackEl.select(); } };
     try { navigator.clipboard.writeText(text).then(done, fallback); } catch { fallback(); }
   }
+  const KAKAO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.48 2 10.78c0 2.78 1.86 5.22 4.66 6.6l-.95 3.48c-.08.3.26.54.52.37l4.15-2.74c.53.06 1.07.09 1.62.09 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/></svg>';
   const GOOGLE_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 
   function requireAuth() {
@@ -114,7 +136,22 @@
         if (B.mode === 'demo') { me = B.currentUser(); renderNav(); afterLogin(); }
       } catch (e) { err.textContent = e.message; err.hidden = false; btn.disabled = false; }
     };
-    return [btn, err];
+    const out = [btn];
+    // 카카오 로그인 (설정에서 켠 경우에만)
+    if ((window.EB_CONFIG || {}).KAKAO_LOGIN || B.mode === 'demo') {
+      const kb = h('button', { class: 'btn big kakao', type: 'button', html: KAKAO_SVG });
+      kb.append(label.replace('Google', '카카오'));
+      kb.onclick = async () => {
+        kb.disabled = true; err.hidden = true;
+        try {
+          await withAuth(() => B.signInKakao(store.get(window.EB.RETURN_KEY, '#/')));
+          if (B.mode === 'demo') { me = B.currentUser(); renderNav(); afterLogin(); }
+        } catch (e) { err.textContent = e.message; err.hidden = false; kb.disabled = false; }
+      };
+      out.unshift(kb);
+    }
+    out.push(err);
+    return out;
   }
 
   function viewLogin() {
@@ -251,6 +288,7 @@
       h('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-end' },
         h('div', {}, h('div', { class: 'eyebrow', text: '내 여행' }), h('h1', { text: `${me.name}님, 이번엔 어디 갈까요?` })),
         h('a', { class: 'btn primary', href: '#/new' }, '+ 새 여행 만들기')),
+      (() => { const slot = h('div', { class: 'install-slot' }); drawInstall(slot); return slot; })(),
       list);
     let rows;
     try { rows = await B.myEvents(); }
@@ -1034,6 +1072,7 @@
       }
     });
     window.addEventListener('hashchange', route);
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
     const linkError = B.urlError && B.urlError();
     if (linkError) {
       bar.hidden = false; bar.textContent = linkError; bar.style.background = 'var(--no-soft)';
