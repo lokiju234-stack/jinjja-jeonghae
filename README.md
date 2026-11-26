@@ -1,6 +1,6 @@
 # 얘들아 이제는 진짜 정해야해
 
-링크 하나로 모두가 되는 날을 찾아 주는 일정 맞추기 서비스.
+초대 링크 하나로 친구들과 날짜를 맞추고, 일정표·준비물·정산·사진 다이어리까지 함께 쓰는 여행 플래너.
 
 - 방장이 날짜 범위와 일정 길이(하루 / 1박 2일 / 2박 3일 / 3박 4일)를 정해 **일정을 만들고**, 링크를 공유합니다.
 - 링크를 받은 사람은 **구글 로그인** 또는 **이메일 회원가입/로그인** 후 안 되는 날(또는 되는 날)만 표시합니다.
@@ -50,7 +50,7 @@ python3 -m http.server 8080
 
 ### 2-1. Supabase 프로젝트 만들기
 1. https://supabase.com 에서 가입 후 **New project** (리전은 `Northeast Asia (Seoul)` 추천).
-2. 왼쪽 **SQL Editor** → `supabase/schema.sql` 내용을 전부 붙여 넣고 **Run**.
+2. 왼쪽 **SQL Editor** → `supabase/schema.sql`, 이어서 `supabase/002_trip_planner.sql` 내용을 붙여 넣고 각각 **Run**.
 3. **Project Settings → API** 에서 `Project URL`과 `anon public` 키를 복사해 `js/config.js`에 넣습니다.
    - `service_role` 키는 절대 넣지 마세요. 브라우저에 노출되면 모든 데이터가 열립니다.
 

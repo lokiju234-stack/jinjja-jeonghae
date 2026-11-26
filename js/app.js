@@ -101,12 +101,12 @@
     setPage(
       h('section', { class: 'hero' },
         h('div', {},
-          h('div', { class: 'eyebrow', text: '모임 날짜 맞추기' }),
+          h('div', { class: 'eyebrow', text: '날짜 맞추기부터 여행 기록까지' }),
           h('h1', {}, '얘들아,', h('br'), '이제는 진짜 ', h('span', { class: 'q', text: '정해야해' })),
-          h('p', { class: 'lead', text: '안 되는 날만 콕콕 누르면, 모두가 되는 날은 알아서 찾아 드려요. 엠티, 회식, 동창회까지 링크 하나로.' }),
+          h('p', { class: 'lead', text: '초대 링크 하나로 친구들을 모아 날짜를 정하고, 일정표·준비물·정산·다이어리까지 함께 써요.' }),
           h('div', { class: 'row' },
-            h('a', { class: 'btn primary', href: me ? '#/new' : '#/signup' }, '무료로 일정 만들기'),
-            h('a', { class: 'btn', href: me ? '#/' : '#/login' }, me ? '내 일정 보기' : '로그인'))),
+            h('a', { class: 'btn primary', href: me ? '#/new' : '#/signup' }, '무료로 여행 만들기'),
+            h('a', { class: 'btn', href: me ? '#/' : '#/login' }, me ? '내 여행 보기' : '로그인'))),
         h('div', { class: 'demo-cal' },
           h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', { text: '1월 팀 엠티 · 8명 응답' }), h('span', { class: 'tag-ex', text: '예시' })),
           sample,
@@ -114,9 +114,9 @@
             h('div', {}, h('div', { class: 'when', text: '1/15(금) ~ 1/16(토)' }), h('div', { class: 'why', text: '8명 모두 가능해요' })),
             h('span', { class: 'pill all', text: '전원 가능' })))),
       h('ol', { class: 'steps' },
-        h('li', {}, h('span', { class: 'n', text: 'STEP 1' }), h('b', { text: '방장이 일정 만들기' }), h('span', { text: '날짜 범위와 일정 길이(하루, 1박 2일…)만 정하면 끝.' })),
-        h('li', {}, h('span', { class: 'n', text: 'STEP 2' }), h('b', { text: '링크 공유' }), h('span', { text: '단톡방에 링크를 올리면 각자 로그인해서 들어와요.' })),
-        h('li', {}, h('span', { class: 'n', text: 'STEP 3' }), h('b', { text: '되는 날 자동 추천' }), h('span', { text: '안 되는 날(또는 되는 날)만 표시하면 순위가 실시간으로 바뀌어요.' }))));
+        h('li', {}, h('span', { class: 'n', text: 'STEP 1' }), h('b', { text: '여행 만들고 초대' }), h('span', { text: '날짜 투표, 날짜 확정, 날짜 미정 중에 고르고 초대 링크를 단톡방에 보내요.' })),
+        h('li', {}, h('span', { class: 'n', text: 'STEP 2' }), h('b', { text: '되는 날 자동 추천' }), h('span', { text: '각자 안 되는 날만 표시하면 모두 되는 날을 찾아 주고, 방장이 확정해요.' })),
+        h('li', {}, h('span', { class: 'n', text: 'STEP 3' }), h('b', { text: '함께 계획하고 기록' }), h('span', { text: '일차별 일정표와 지도, 준비물, 정산, 사진 다이어리를 멤버들과 같이 써요.' }))));
   }
 
   // ───────── auth screens ─────────
@@ -167,7 +167,7 @@
     if (me) { afterLogin(); return; }
     const name = h('input', { type: 'text', id: 'su-name', autocomplete: 'name', maxlength: '30', placeholder: '모임에서 보일 이름' });
     const email = h('input', { type: 'email', id: 'su-email', autocomplete: 'email', placeholder: 'name@example.com' });
-    const pw = h('input', { type: 'password', id: 'su-pw', autocomplete: 'new-password', placeholder: '8자 이상' });
+    const pw = h('input', { type: 'password', id: 'su-pw', autocomplete: 'new-password', placeholder: '영문+숫자 8자 이상' });
     const pw2 = h('input', { type: 'password', id: 'su-pw2', autocomplete: 'new-password' });
     const agree = h('input', { type: 'checkbox', id: 'su-agree' });
     const err = h('p', { class: 'err-text', hidden: true });
@@ -191,7 +191,7 @@
       const n = name.value.trim(), em = email.value.trim();
       if (!n) return fail('이름을 입력해 주세요.');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return fail('이메일 주소를 확인해 주세요.');
-      if (pw.value.length < 8) return fail('비밀번호는 8자 이상이어야 해요.');
+      if (pw.value.length < 8 || !/[A-Za-z]/.test(pw.value) || !/[0-9]/.test(pw.value)) return fail('비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요.');
       if (pw.value !== pw2.value) return fail('비밀번호가 서로 달라요.');
       if (!agree.checked) return fail('약관에 동의해 주세요.');
       submit.disabled = true;
@@ -238,7 +238,7 @@
 
   function viewReset() {
     if (!me) { go('#/login'); return; }
-    const pw = h('input', { type: 'password', id: 'rs-pw', autocomplete: 'new-password', placeholder: '8자 이상' });
+    const pw = h('input', { type: 'password', id: 'rs-pw', autocomplete: 'new-password', placeholder: '영문+숫자 8자 이상' });
     const pw2 = h('input', { type: 'password', id: 'rs-pw2', autocomplete: 'new-password' });
     const err = h('p', { class: 'err-text', hidden: true });
     const submit = h('button', { class: 'btn primary big', type: 'submit' }, '비밀번호 바꾸기');
@@ -246,7 +246,7 @@
       h('h1', { text: '새 비밀번호 설정' }), h('label', { class: 'f' }, '새 비밀번호', pw), h('label', { class: 'f' }, '새 비밀번호 확인', pw2), err, submit);
     form.addEventListener('submit', async e => {
       e.preventDefault(); err.hidden = true;
-      if (pw.value.length < 8) { err.textContent = '비밀번호는 8자 이상이어야 해요.'; err.hidden = false; return; }
+      if (pw.value.length < 8 || !/[A-Za-z]/.test(pw.value) || !/[0-9]/.test(pw.value)) { err.textContent = '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요.'; err.hidden = false; return; }
       if (pw.value !== pw2.value) { err.textContent = '비밀번호가 서로 달라요.'; err.hidden = false; return; }
       submit.disabled = true;
       try {

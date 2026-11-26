@@ -29,7 +29,8 @@
     if (/Invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요.';
     if (/Email not confirmed/i.test(m)) return '이메일 인증이 아직 안 됐어요. 받은 메일함에서 인증 링크를 눌러 주세요.';
     if (/already registered|already exists/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요.';
-    if (/Password should be at least/i.test(m)) return '비밀번호는 8자 이상이어야 해요.';
+    if (/Password should be at least|Password should contain|weak/i.test(m)) return '비밀번호는 영문과 숫자를 섞어 8자 이상으로 정해 주세요.';
+    if (/reauthentication|Reauth/i.test(m)) return '보안을 위해 다시 로그인한 뒤 비밀번호를 바꿔 주세요.';
     if (/rate limit|too many/i.test(m)) return '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.';
     if (/provider is not enabled/i.test(m)) return '구글 로그인이 아직 설정되지 않았어요. (Supabase > Authentication > Providers)';
     return m || '알 수 없는 오류가 발생했어요.';
