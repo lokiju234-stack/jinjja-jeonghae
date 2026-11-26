@@ -46,5 +46,17 @@
     '2027-10-09': '한글날', '2027-10-11': '대체공휴일', '2027-12-25': '성탄절', '2027-12-27': '대체공휴일',
   };
 
-  window.EBDate = { DOW, pad, iso, parse, addDays, dow, short, long, list, months, rangeText, HOLIDAYS, today: () => iso(new Date()) };
+  const nightsLabel = n => n <= 1 ? '당일' : `${n - 1}박 ${n}일`;
+  // 여행 날짜 요약: 확정 > 투표 중 > 미정
+  function tripSummary(ev) {
+    if (ev.confirmed_start) return { status: '확정', label: rangeText(ev.confirmed_start, ev.confirmed_end) + ' · ' + nightsLabel(list(ev.confirmed_start, ev.confirmed_end).length) };
+    if (ev.date_mode === 'poll' && ev.start_date) return { status: '날짜 투표 중', label: `${rangeText(ev.start_date, ev.end_date)} 중에서` };
+    return { status: '날짜 미정', label: ev.trip_days ? nightsLabel(ev.trip_days) + ' · 날짜 미정' : '날짜 미정' };
+  }
+  function tripDays(ev) {
+    if (ev.confirmed_start) return list(ev.confirmed_start, ev.confirmed_end).length;
+    return Math.max(1, Math.min(60, ev.trip_days || ((ev.default_nights ?? 1) + 1)));
+  }
+
+  window.EBDate = { DOW, pad, iso, parse, addDays, dow, short, long, list, months, rangeText, HOLIDAYS, nightsLabel, tripSummary, tripDays, today: () => iso(new Date()) };
 })();

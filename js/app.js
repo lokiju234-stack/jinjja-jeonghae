@@ -9,7 +9,8 @@
   const LEN_LABEL = ['하루', '1박 2일', '2박 3일', '3박 4일'];
 
   let me = null;
-  let cleanup = null;
+  let cleanups = [];
+  const addCleanup = fn => cleanups.push(fn);
   let navToken = 0;     // 화면이 바뀌면 증가 — 늦게 도착한 비동기 결과를 버리기 위함
   let localAuth = 0;    // 이 화면에서 직접 로그인/로그아웃 중이면 auth 이벤트로 다시 이동하지 않음
   async function withAuth(fn) { localAuth++; try { return await fn(); } finally { localAuth--; } }
@@ -71,7 +72,8 @@
     if (me) {
       nav.replaceChildren(
         h('span', { class: 'who', text: me.name + '님' }),
-        h('a', { class: 'btn small ghost', href: '#/' }, '내 일정'),
+        h('a', { class: 'btn small ghost', href: '#/' }, '내 여행'),
+        h('a', { class: 'btn small ghost', href: '#/account' }, '내 정보'),
         h('button', { class: 'btn small', type: 'button', onclick: async () => { await withAuth(() => B.signOut()); me = null; store.del(window.EB.RETURN_KEY); renderNav(); go('#/'); } }, '로그아웃'));
     } else {
       nav.replaceChildren(
@@ -261,95 +263,188 @@
 
   // ───────── dashboard ─────────
   async function viewDashboard() {
-    const list = h('div', { class: 'empty', text: '내 일정을 불러오는 중…' });
+    const list = h('div', { class: 'empty', text: '내 여행을 불러오는 중…' });
     setPage(
       h('div', { class: 'row', style: 'justify-content:space-between;align-items:flex-end' },
-        h('div', {}, h('div', { class: 'eyebrow', text: '내 일정' }), h('h1', { text: `${me.name}님, 언제 볼까요?` })),
-        h('div', { class: 'row' },
-          me.provider === 'email' ? h('a', { class: 'btn small ghost', href: '#/reset' }, '비밀번호 바꾸기') : null,
-          h('a', { class: 'btn primary', href: '#/new' }, '+ 새 일정 만들기'))),
+        h('div', {}, h('div', { class: 'eyebrow', text: '내 여행' }), h('h1', { text: `${me.name}님, 이번엔 어디 갈까요?` })),
+        h('a', { class: 'btn primary', href: '#/new' }, '+ 새 여행 만들기')),
       list);
     let rows;
     try { rows = await B.myEvents(); }
-    catch (e) { list.textContent = '일정을 불러오지 못했어요. 새로고침해 주세요.'; return; }
-    const card = ev => h('a', { class: 'card', href: '#/e/' + ev.code },
-      h('div', { class: 'badges' },
-        ev.is_owner ? h('span', { class: 'badge host', text: '방장' }) : h('span', { class: 'badge', text: '참여' }),
-        ev.closed ? h('span', { class: 'badge closed', text: '마감' }) : null),
-      h('div', { class: 't', text: ev.title }),
-      h('div', { class: 'm', text: D.rangeText(ev.start_date, ev.end_date) }),
-      h('div', { class: 'm', text: `${LEN_LABEL[ev.default_nights] || ''} · 응답 ${ev.response_count}명${ev.is_owner ? '' : ' · 방장 ' + (ev.owner_name || '')}` }));
+    catch (e) { list.textContent = '여행 목록을 불러오지 못했어요. 새로고침해 주세요.'; return; }
+    const card = ev => {
+      const sum = D.tripSummary(ev);
+      return h('a', { class: 'card', href: '#/e/' + ev.code },
+        h('div', { class: 'badges' },
+          ev.is_owner ? h('span', { class: 'badge host', text: '방장' }) : h('span', { class: 'badge', text: '참여' }),
+          h('span', { class: 'badge ' + (sum.status === '확정' ? 'ok' : ''), text: sum.status })),
+        h('div', { class: 't', text: ev.title }),
+        h('div', { class: 'm', text: sum.label }),
+        h('div', { class: 'm', text: `멤버 ${ev.member_count || 1}명${ev.is_owner ? '' : ' · 방장 ' + (ev.owner_name || '')}` }));
+    };
     const owned = rows.filter(r => r.is_owner), joined = rows.filter(r => !r.is_owner);
     const section = (title, items, empty) => h('section', { class: 'panel' },
       h('h2', { text: title }),
       items.length ? h('div', { class: 'cards' }, items.map(card)) : h('div', { class: 'empty' }, empty));
     list.replaceWith(
-      section('내가 만든 일정', owned, ['아직 만든 일정이 없어요. ', h('a', { href: '#/new' }, '첫 일정 만들기')]),
-      section('참여한 일정', joined, '받은 링크로 들어가서 날짜를 표시하면 여기에 모여요.'));
+      section('내가 만든 여행', owned, ['아직 만든 여행이 없어요. ', h('a', { href: '#/new' }, '첫 여행 만들기')]),
+      section('초대받은 여행', joined, '친구에게 받은 초대 링크로 들어가면 여기에 모여요.'));
   }
 
-  // ───────── new event ─────────
+  // ───────── new trip ─────────
   function viewNew() {
     const t = D.parse(D.today());
     const nmStart = D.iso(new Date(t.getFullYear(), t.getMonth() + 1, 1));
     const nmEnd = D.iso(new Date(t.getFullYear(), t.getMonth() + 2, 0));
-    let nights = 1;
-    const title = h('input', { type: 'text', id: 'nw-title', maxlength: '60', placeholder: '예: 1월 팀 엠티' });
-    const desc = h('textarea', { id: 'nw-desc', rows: '3', maxlength: '500', placeholder: '장소 후보, 예산, 마감일 등 (선택)' });
-    const start = h('input', { type: 'date', id: 'nw-start', value: nmStart });
-    const end = h('input', { type: 'date', id: 'nw-end', value: nmEnd });
-    const err = h('p', { class: 'err-text', hidden: true });
-    const submit = h('button', { class: 'btn primary big', type: 'submit' }, '일정 만들고 링크 받기');
-    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': '일정 길이' });
-    const drawSeg = () => seg.replaceChildren(...LEN_LABEL.map((l, i) => h('button', { type: 'button', 'aria-pressed': String(i === nights), onclick: () => { nights = i; drawSeg(); } }, l)));
-    drawSeg();
-    const preset = (label, s, e) => h('button', { type: 'button', class: 'btn small', onclick: () => { start.value = s; end.value = e; } }, label);
     const today = D.today();
-    const thisEnd = D.iso(new Date(t.getFullYear(), t.getMonth() + 1, 0));
-    const form = h('form', { class: 'panel', novalidate: true, style: 'max-width:640px;width:100%;margin:0 auto' },
-      h('div', {}, h('div', { class: 'eyebrow', text: '방장' }), h('h1', { text: '새 일정 만들기' }),
-        h('p', { class: 'sub', text: '날짜 범위를 정하면 참여자는 그 안에서 안 되는 날을 표시해요.' })),
-      h('label', { class: 'f' }, '일정 이름', title),
-      h('label', { class: 'f' }, '설명', desc),
-      h('div', { class: 'grid2' }, h('label', { class: 'f' }, '시작일', start), h('label', { class: 'f' }, '종료일', end)),
-      h('div', { class: 'row' },
-        preset('다음 달', nmStart, nmEnd),
-        preset('이번 달 남은 날', today, thisEnd),
-        preset('앞으로 2주', today, D.addDays(today, 13)),
-        preset('앞으로 4주', today, D.addDays(today, 27))),
-      h('div', { class: 'ctrls' }, h('span', { class: 'eyebrow', text: '일정 길이 (추천 기준, 나중에 바꿀 수 있어요)' }), seg),
+    let mode = 'poll', nights = 1, days = 2;
+    const title = h('input', { type: 'text', id: 'nw-title', maxlength: '60', placeholder: '예: 1월 팀 엠티, 제주도 3박 4일' });
+    const desc = h('textarea', { id: 'nw-desc', rows: '2', maxlength: '500', placeholder: '여행 소개, 예산, 공지 등 (선택)' });
+    const pStart = h('input', { type: 'date', id: 'nw-start', value: nmStart });
+    const pEnd = h('input', { type: 'date', id: 'nw-end', value: nmEnd });
+    const fStart = h('input', { type: 'date', id: 'nw-fstart', value: D.addDays(today, 14) });
+    const fEnd = h('input', { type: 'date', id: 'nw-fend', value: D.addDays(today, 15) });
+    const nDays = h('input', { type: 'number', id: 'nw-days', min: '1', max: '30', value: '2', inputmode: 'numeric', style: 'max-width:110px' });
+    const err = h('p', { class: 'err-text', hidden: true });
+    const submit = h('button', { class: 'btn primary big', type: 'submit' }, '여행 만들고 초대 링크 받기');
+
+    const modes = [
+      ['poll', '날짜 투표로 정하기', '후보 기간을 정하면 멤버들이 안 되는 날을 표시하고, 모두 되는 날을 추천해요.'],
+      ['fixed', '날짜가 이미 정해졌어요', '여행 날짜를 바로 넣고 일정표부터 함께 짜요.'],
+      ['undecided', '날짜는 미정, 계획부터', '며칠짜리인지만 정하고 계획을 먼저 짜요. 날짜는 나중에 투표하거나 확정할 수 있어요.'],
+    ];
+    const modeBox = h('div', { class: 'mode-pick', role: 'radiogroup', 'aria-label': '날짜 정하는 방식' });
+    const lenSeg = h('div', { class: 'seg', role: 'group', 'aria-label': '여행 길이' });
+    const secPoll = h('div', { class: 'ctrls' });
+    const secFixed = h('div', { class: 'ctrls' });
+    const secUnd = h('div', { class: 'ctrls' });
+    const preset = (label, s, e) => h('button', { type: 'button', class: 'btn small', onclick: () => { pStart.value = s; pEnd.value = e; } }, label);
+    function draw() {
+      modeBox.replaceChildren(...modes.map(([k, name, sub]) => h('button', {
+        type: 'button', role: 'radio', class: 'mode-card', 'aria-checked': String(mode === k),
+        onclick: () => { mode = k; draw(); }
+      }, h('b', { text: name }), h('span', { text: sub }))));
+      lenSeg.replaceChildren(...LEN_LABEL.map((l, i) => h('button', { type: 'button', 'aria-pressed': String(i === nights), onclick: () => { nights = i; nDays.value = String(i + 1); draw(); } }, l)));
+      secPoll.hidden = mode !== 'poll'; secFixed.hidden = mode !== 'fixed'; secUnd.hidden = mode !== 'undecided';
+    }
+    secPoll.append(
+      h('span', { class: 'eyebrow', text: '후보 기간 (이 안에서 날짜를 골라요)' }),
+      h('div', { class: 'grid2' }, h('label', { class: 'f' }, '시작일', pStart), h('label', { class: 'f' }, '종료일', pEnd)),
+      h('div', { class: 'row' }, preset('다음 달', nmStart, nmEnd), preset('앞으로 2주', today, D.addDays(today, 13)), preset('앞으로 4주', today, D.addDays(today, 27))),
+      h('span', { class: 'eyebrow', text: '여행 길이 (추천 기준)' }), lenSeg);
+    secFixed.append(
+      h('span', { class: 'eyebrow', text: '여행 날짜' }),
+      h('div', { class: 'grid2' }, h('label', { class: 'f' }, '출발일', fStart), h('label', { class: 'f' }, '마지막 날', fEnd)));
+    secUnd.append(
+      h('span', { class: 'eyebrow', text: '며칠짜리 여행인가요?' }),
+      h('div', { class: 'row' }, h('label', { class: 'f', style: 'grid-auto-flow:column;align-items:center;gap:8px' }, nDays, '일'),
+        h('span', { class: 'hint', text: '예: 1박 2일이면 2일. 나중에 바꿀 수 있어요.' })));
+    draw();
+
+    const form = h('form', { class: 'panel', novalidate: true, style: 'max-width:680px;width:100%;margin:0 auto' },
+      h('div', {}, h('div', { class: 'eyebrow', text: '방장' }), h('h1', { text: '새 여행 만들기' }),
+        h('p', { class: 'sub', text: '여행을 만들면 초대 링크가 생겨요. 링크로 들어온 친구들과 날짜, 일정표, 준비물, 정산, 다이어리를 함께 써요.' })),
+      h('label', { class: 'f' }, '여행 이름', title),
+      h('label', { class: 'f' }, '소개 (선택)', desc),
+      h('div', { class: 'ctrls' }, h('span', { class: 'eyebrow', text: '날짜는 어떻게 정할까요?' }), modeBox),
+      secPoll, secFixed, secUnd,
       err, submit);
     form.addEventListener('submit', async e => {
       e.preventDefault(); err.hidden = true;
       const fail = m => { err.textContent = m; err.hidden = false; };
       const tv = title.value.trim();
-      if (!tv) return fail('일정 이름을 입력해 주세요.');
-      if (!start.value || !end.value) return fail('시작일과 종료일을 골라 주세요.');
-      if (end.value < start.value) return fail('종료일이 시작일보다 빨라요.');
-      const span = D.list(start.value, end.value).length;
-      if (span > 93) return fail('기간은 최대 93일(약 3개월)까지 정할 수 있어요.');
-      if (span < nights + 1) return fail(`${LEN_LABEL[nights]} 일정을 넣기엔 기간이 짧아요.`);
+      if (!tv) return fail('여행 이름을 입력해 주세요.');
+      const row = { title: tv, description: desc.value.trim(), date_mode: mode };
+      if (mode === 'poll') {
+        if (!pStart.value || !pEnd.value) return fail('후보 기간의 시작일과 종료일을 골라 주세요.');
+        if (pEnd.value < pStart.value) return fail('종료일이 시작일보다 빨라요.');
+        const span = D.list(pStart.value, pEnd.value).length;
+        if (span > 93) return fail('후보 기간은 최대 93일(약 3개월)까지 정할 수 있어요.');
+        if (span < nights + 1) return fail(`${LEN_LABEL[nights]} 일정을 넣기엔 기간이 짧아요.`);
+        Object.assign(row, { start_date: pStart.value, end_date: pEnd.value, default_nights: nights, trip_days: nights + 1 });
+      } else if (mode === 'fixed') {
+        if (!fStart.value || !fEnd.value) return fail('출발일과 마지막 날을 골라 주세요.');
+        if (fEnd.value < fStart.value) return fail('마지막 날이 출발일보다 빨라요.');
+        const span = D.list(fStart.value, fEnd.value).length;
+        if (span > 60) return fail('여행 기간은 최대 60일까지 정할 수 있어요.');
+        Object.assign(row, { confirmed_start: fStart.value, confirmed_end: fEnd.value, trip_days: span, default_nights: Math.min(span - 1, 6) });
+      } else {
+        const n = parseInt(nDays.value, 10);
+        if (!(n >= 1 && n <= 30)) return fail('여행 일수는 1일에서 30일 사이로 적어 주세요.');
+        Object.assign(row, { trip_days: n, default_nights: Math.min(n - 1, 6) });
+      }
       submit.disabled = true;
       try {
-        const ev = await B.createEvent({ title: tv, description: desc.value.trim(), start_date: start.value, end_date: end.value, default_nights: nights });
+        const ev = await B.createEvent(row);
         go('#/e/' + ev.code + '/new');
-      } catch (ex) { fail('일정을 만들지 못했어요: ' + (ex.message || ex)); submit.disabled = false; }
+      } catch (ex) { fail('여행을 만들지 못했어요: ' + (ex.message || ex)); submit.disabled = false; }
     });
     setPage(form);
     title.focus();
   }
 
+  // ───────── account ─────────
+  function viewAccount() {
+    const nameIn = h('input', { type: 'text', id: 'ac-name', maxlength: '30', value: me.name });
+    const nameMsg = h('p', { class: 'ok-text', hidden: true });
+    const nameBtn = h('button', { class: 'btn small', type: 'button' }, '이름 저장');
+    nameBtn.onclick = async () => {
+      const n = nameIn.value.trim(); if (!n) return;
+      nameBtn.disabled = true;
+      try { me = await B.updateName(n); renderNav(); nameMsg.textContent = '저장했어요. 새로 참여하는 여행부터 이 이름이 쓰여요.'; nameMsg.hidden = false; }
+      catch (e) { nameMsg.textContent = e.message; nameMsg.hidden = false; }
+      finally { nameBtn.disabled = false; }
+    };
+    const confirmIn = h('input', { type: 'text', id: 'ac-confirm', placeholder: '탈퇴합니다', autocomplete: 'off' });
+    const pwIn = h('input', { type: 'password', id: 'ac-pw', autocomplete: 'current-password' });
+    const delErr = h('p', { class: 'err-text', hidden: true });
+    const delBtn = h('button', { class: 'btn danger', type: 'submit' }, '회원 탈퇴');
+    const delForm = h('form', { class: 'panel danger-zone', novalidate: true },
+      h('h2', { text: '회원 탈퇴' }),
+      h('p', { class: 'sub', text: '탈퇴하면 아래 정보가 바로 지워지고 되돌릴 수 없어요.' }),
+      h('ul', { class: 'plain' },
+        h('li', { text: '내 계정(이메일, 이름, 로그인 정보)' }),
+        h('li', { text: '내가 방장인 여행 전체와 그 안의 날짜 응답, 일정표, 준비물, 정산, 다이어리, 사진' }),
+        h('li', { text: '다른 여행에 남긴 내 날짜 응답, 다이어리 글과 사진, 내가 낸 정산 내역' })),
+      h('label', { class: 'f' }, '확인을 위해 "탈퇴합니다"를 입력해 주세요', confirmIn),
+      me.provider === 'email' ? h('label', { class: 'f' }, '비밀번호', pwIn) : h('p', { class: 'hint', text: '구글로 가입한 계정이에요. 탈퇴 후 구글 계정 설정의 "타사 앱 연결"에서도 연결을 끊을 수 있어요.' }),
+      delErr, h('div', {}, delBtn));
+    delForm.addEventListener('submit', async e => {
+      e.preventDefault(); delErr.hidden = true;
+      if (confirmIn.value.trim() !== '탈퇴합니다') { delErr.textContent = '"탈퇴합니다"를 정확히 입력해 주세요.'; delErr.hidden = false; return; }
+      if (me.provider === 'email' && !pwIn.value) { delErr.textContent = '비밀번호를 입력해 주세요.'; delErr.hidden = false; return; }
+      delBtn.disabled = true; delBtn.textContent = '지우는 중…';
+      try {
+        await withAuth(() => B.deleteAccount(pwIn.value));
+        me = null; store.del(window.EB.RETURN_KEY); renderNav();
+        setPage(h('div', { class: 'auth' }, h('div', { class: 'panel' },
+          h('h1', { text: '탈퇴가 완료됐어요' }),
+          h('p', { class: 'sub', text: '그동안 이용해 주셔서 고마워요. 계정과 데이터를 모두 지웠어요.' }),
+          h('a', { class: 'btn', href: '#/' }, '처음으로'))));
+      } catch (ex) { delErr.textContent = ex.message || '탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요.'; delErr.hidden = false; delBtn.disabled = false; delBtn.textContent = '회원 탈퇴'; }
+    });
+    setPage(h('div', { style: 'max-width:640px;width:100%;margin:0 auto;display:grid;gap:20px' },
+      h('div', {}, h('div', { class: 'eyebrow', text: '내 정보' }), h('h1', { text: '계정 관리' })),
+      h('section', { class: 'panel' },
+        h('h2', { text: '프로필' }),
+        h('div', { class: 'kv' }, h('span', { text: '이메일' }), h('b', { text: me.email || '-' })),
+        h('div', { class: 'kv' }, h('span', { text: '로그인 방식' }), h('b', { text: me.provider === 'google' ? '구글' : '이메일' })),
+        h('label', { class: 'f' }, '이름', nameIn), h('div', { class: 'row' }, nameBtn), nameMsg,
+        me.provider === 'email' ? h('div', { class: 'row' }, h('a', { class: 'btn small ghost', href: '#/reset' }, '비밀번호 바꾸기')) : null),
+      delForm));
+  }
+
   // ───────── event page ─────────
-  async function viewEvent(code, justCreated) {
+  async function viewEvent(code, justCreated, host) {
     const token = navToken;
     const stale = () => token !== navToken;
-    setPage(h('div', { class: 'empty', text: '일정을 불러오는 중…' }));
-    let ev;
-    try { ev = await B.getEvent(code); }
-    catch (e) { if (stale()) return; setPage(h('div', { class: 'banner err', text: '일정을 불러오지 못했어요. 잠시 후 새로고침해 주세요.' })); return; }
+    const put = (...n) => host.mount(...n);
+    let ev = host.ev;
+    try { if (!ev) ev = await B.getEvent(code); }
+    catch (e) { if (stale()) return; put(h('div', { class: 'banner err', text: '일정을 불러오지 못했어요. 잠시 후 새로고침해 주세요.' })); return; }
     if (stale()) return;
     if (!ev) {
-      setPage(h('div', { class: 'panel', style: 'max-width:520px;margin:0 auto' },
+      put(h('div', { class: 'panel', style: 'max-width:520px;margin:0 auto' },
         h('h1', { text: '일정을 찾을 수 없어요' }),
         h('p', { class: 'sub', text: '링크가 잘못됐거나 방장이 일정을 삭제했어요.' }),
         h('a', { class: 'btn', href: '#/' }, '내 일정으로')));
@@ -386,13 +481,7 @@
     // ── layout skeleton
     const saveState = h('span', { class: 'save' });
     const closedBanner = h('div', { class: 'banner', hidden: true });
-    const linkInput = h('input', { type: 'text', readonly: true, id: 'share-link', value: shareUrl(code), 'aria-label': '공유 링크', onfocus: e => e.target.select() });
-    const copyLinkBtn = h('button', { class: 'btn primary', type: 'button', onclick: () => copyText(shareUrl(code), copyLinkBtn, linkInput) }, '링크 복사');
     const ownerBox = h('div', { class: 'row' });
-    const editBox = h('div', { hidden: true });
-    const titleEl = h('h1', { text: ev.title });
-    const metaEl = h('div', { class: 'sub' });
-    const descEl = h('p', { class: 'ev-desc' });
 
     const whoRow = h('div', { class: 'row', hidden: true });
     const proxyRow = h('div', { class: 'row', hidden: true });
@@ -421,14 +510,10 @@
     const dayDetail = h('div', { class: 'detail', hidden: true });
     const mxBox = h('div');
 
-    setPage(
-      h('section', { class: 'panel ev-head' },
-        justCreated ? h('div', { class: 'banner info' }, h('b', { text: '일정이 만들어졌어요! ' }), '아래 링크를 단톡방에 공유하세요. 방장님 일정도 먼저 표시해 두면 좋아요.') : null,
-        h('div', {}, h('div', { class: 'eyebrow', text: `방장 ${ev.owner_name || ''}` }), titleEl, metaEl),
-        descEl,
-        h('div', { class: 'share' }, linkInput, copyLinkBtn),
-        h('p', { class: 'hint', text: '링크를 받은 사람은 로그인(구글 또는 이메일) 후 자기 일정을 표시할 수 있어요.' }),
-        ownerBox, editBox),
+    put(
+      h('div', { class: 'row', style: 'justify-content:space-between;align-items:center' },
+        h('p', { class: 'hint', style: 'max-width:60ch', text: '각자 안 되는 날(또는 되는 날)을 표시하면 모두가 되는 날을 추천해요. 방장은 추천 날짜를 골라 "이 날짜로 확정"하면 일정표가 그 날짜로 맞춰져요.' }),
+        ownerBox),
       closedBanner,
       h('div', { class: 'cols' },
         h('section', { class: 'panel', 'aria-labelledby': 'h-mine' },
@@ -472,77 +557,17 @@
 
     // ── header & owner controls
     function renderHead() {
-      titleEl.textContent = S.ev.title;
-      metaEl.textContent = `${D.rangeText(S.ev.start_date, S.ev.end_date)} · ${S.dates.length}일 중에서 골라요`;
-      descEl.textContent = S.ev.description || '';
-      descEl.hidden = !S.ev.description;
       closedBanner.hidden = !S.ev.closed;
-      closedBanner.textContent = isOwner() ? '마감된 일정이에요. 다시 열면 참여자들이 수정할 수 있어요.' : '방장이 마감한 일정이에요. 결과만 볼 수 있어요.';
+      closedBanner.textContent = isOwner() ? '응답을 마감했어요. 다시 열면 참여자들이 수정할 수 있어요.' : '방장이 응답을 마감했어요. 결과만 볼 수 있어요.';
       ownerBox.replaceChildren();
       if (!isOwner()) return;
-      let armed = false;
-      const del = h('button', { class: 'btn small danger', type: 'button' }, '일정 삭제');
-      del.onclick = async () => {
-        if (!armed) { armed = true; del.textContent = '정말 삭제할까요? 한 번 더 누르기'; setTimeout(() => { armed = false; del.textContent = '일정 삭제'; }, 4000); return; }
-        del.disabled = true;
-        try { await B.deleteEvent(S.ev.id); go('#/'); } catch (e) { del.disabled = false; del.textContent = '삭제하지 못했어요'; }
-      };
-      ownerBox.append(
-        h('span', { class: 'badge host', text: '방장 메뉴' }),
-        h('button', { class: 'btn small', type: 'button', onclick: openEdit }, '일정 수정'),
-        h('button', {
-          class: 'btn small', type: 'button', onclick: async e => {
-            e.target.disabled = true;
-            try { S.ev = await B.updateEvent(S.ev.id, { closed: !S.ev.closed }); B.notify(code); renderAll(); }
-            catch (ex) { e.target.disabled = false; }
-          }
-        }, S.ev.closed ? '다시 열기' : '응답 마감하기'),
-        del);
-    }
-
-    // ── 방장: 일정 수정 (이름, 설명, 날짜 범위, 길이)
-    function openEdit() {
-      if (!editBox.hidden) { editBox.hidden = true; return; }
-      let n = S.ev.default_nights;
-      const t = h('input', { type: 'text', id: 'ed-title', maxlength: '60', value: S.ev.title });
-      const ds = h('textarea', { id: 'ed-desc', rows: '2', maxlength: '500', value: S.ev.description || '' });
-      const st = h('input', { type: 'date', id: 'ed-start', value: S.ev.start_date });
-      const en = h('input', { type: 'date', id: 'ed-end', value: S.ev.end_date });
-      const seg = h('div', { class: 'seg', role: 'group', 'aria-label': '일정 길이' });
-      const drawSeg = () => seg.replaceChildren(...LEN_LABEL.map((l, i) => h('button', { type: 'button', 'aria-pressed': String(i === n), onclick: () => { n = i; drawSeg(); } }, l)));
-      drawSeg();
-      const err = h('p', { class: 'err-text', hidden: true });
-      const save = h('button', { class: 'btn primary small', type: 'submit' }, '저장');
-      const form = h('form', { class: 'panel', novalidate: true, style: 'background:var(--sunk)' },
-        h('h3', { text: '일정 수정' }),
-        h('label', { class: 'f' }, '일정 이름', t),
-        h('label', { class: 'f' }, '설명', ds),
-        h('div', { class: 'grid2' }, h('label', { class: 'f' }, '시작일', st), h('label', { class: 'f' }, '종료일', en)),
-        h('div', { class: 'ctrls' }, h('span', { class: 'eyebrow', text: '일정 길이' }), seg),
-        h('p', { class: 'hint', text: '날짜 범위를 바꿔도 참여자가 이미 표시한 날짜는 그대로 남아요. 새로 들어온 날짜는 각자의 기본값(가능/불가)으로 계산돼요.' }),
-        err,
-        h('div', { class: 'row' }, save, h('button', { class: 'btn small ghost', type: 'button', onclick: () => { editBox.hidden = true; } }, '취소')));
-      form.addEventListener('submit', async e => {
-        e.preventDefault(); err.hidden = true;
-        const fail = m => { err.textContent = m; err.hidden = false; };
-        const title = t.value.trim();
-        if (!title) return fail('일정 이름을 입력해 주세요.');
-        if (!st.value || !en.value) return fail('시작일과 종료일을 골라 주세요.');
-        if (en.value < st.value) return fail('종료일이 시작일보다 빨라요.');
-        const span = D.list(st.value, en.value).length;
-        if (span > 93) return fail('기간은 최대 93일(약 3개월)까지 정할 수 있어요.');
-        if (span < n + 1) return fail(`${LEN_LABEL[n]} 일정을 넣기엔 기간이 짧아요.`);
-        save.disabled = true;
-        try {
-          await B.updateEvent(S.ev.id, { title, description: ds.value.trim(), start_date: st.value, end_date: en.value, default_nights: n });
-          store.set('eb-n-' + code, n);
-          B.notify(code);
-          if (/\/new$/.test(location.hash)) location.hash = '#/e/' + code; else route();
-        } catch (ex) { fail('저장하지 못했어요: ' + (ex.message || ex)); save.disabled = false; }
-      });
-      editBox.replaceChildren(form);
-      editBox.hidden = false;
-      t.focus();
+      ownerBox.append(h('button', {
+        class: 'btn small', type: 'button', onclick: async e => {
+          e.target.disabled = true;
+          try { S.ev = await B.updateEvent(S.ev.id, { closed: !S.ev.closed }); B.notify(code); renderAll(); host.onChanged && host.onChanged(S.ev); }
+          catch (ex) { e.target.disabled = false; }
+        }
+      }, S.ev.closed ? '응답 다시 받기' : '응답 마감하기'));
     }
 
     // ── saving
@@ -809,11 +834,22 @@
           if (r.maybe.length) why.append('애매: ', h('b', { text: names(r.maybe) }));
           if (!r.no.length && !r.maybe.length) why.append(`${total}명 모두 가능해요`);
           const on = S.highlight && S.highlight.i === r.i && S.highlight.L === r.L;
-          ul.append(h('li', {}, h('button', {
+          const isConf = S.ev.confirmed_start === r.s && S.ev.confirmed_end === r.e;
+          ul.append(h('li', { class: 'rec-li' }, h('button', {
             type: 'button', class: 'rec' + (n === 0 ? ' top' : ''), 'aria-pressed': String(!!on),
             onclick: () => { S.highlight = on ? null : { i: r.i, L: r.L }; S.selected = on ? null : r.s; renderResults(); }
           }, h('span', { class: 'rk', text: n + 1 }),
-            h('div', {}, h('div', { class: 'when', text: rLabel(r) + (r.L > 1 ? ` · ${LEN_LABEL[S.nights]}` : '') }), why), pill)));
+            h('div', {}, h('div', { class: 'when', text: rLabel(r) + (r.L > 1 ? ` · ${LEN_LABEL[S.nights]}` : '') }), why), pill),
+            isOwner() ? h('button', {
+              type: 'button', class: 'btn small ' + (isConf ? '' : 'primary'), disabled: isConf,
+              onclick: async e => {
+                e.target.disabled = true;
+                try {
+                  S.ev = await B.updateEvent(S.ev.id, { confirmed_start: r.s, confirmed_end: r.e });
+                  B.notify(code); host.onChanged && host.onChanged(S.ev, 'plan');
+                } catch (ex) { e.target.disabled = false; e.target.textContent = '확정하지 못했어요'; }
+              }
+            }, isConf ? '확정된 날짜' : '이 날짜로 확정') : (isConf ? h('span', { class: 'badge host', text: '확정' }) : null)));
         });
         recBox.append(ul);
       }
@@ -943,10 +979,10 @@
     S.brush = S.draft.rest === 'ok' ? 'no' : 'ok';
     renderAll();
     const unsub = B.subscribe(code, () => { if (!S.dirty) reload(); });
-    cleanup = () => {
+    addCleanup(() => {
       S.alive = false; unsub(); window.removeEventListener('pointerup', stopPaint);
       if (S.saveTimer) { clearTimeout(S.saveTimer); flush(S.editingKey); }
-    };
+    });
   }
 
   // ───────── legal (초안) ─────────
@@ -972,10 +1008,16 @@
       h('p', { class: 'hint' }, h('a', { href: '#/' + other[0] }, other[1] + ' 보기'))));
   }
 
+  // 다른 화면 파일(trip.js)에서 쓰는 공용 도구
+  window.EBUI = {
+    h, store, clone, go, copyText, setPage, shareUrl, D, B, LEN_LABEL, addCleanup,
+    me: () => me, navToken: () => navToken, datePoll: viewEvent, route,
+  };
+
   // ───────── router ─────────
   function route() {
     navToken++;
-    if (cleanup) { try { cleanup(); } catch {} cleanup = null; }
+    cleanups.splice(0).forEach(f => { try { f(); } catch {} });
     const path = (location.hash.replace(/^#/, '') || '/').split('?')[0];
     const parts = path.split('/').filter(Boolean);
     const [p0, p1, p2] = parts;
@@ -987,7 +1029,8 @@
     if (p0 === 'terms' || p0 === 'privacy') return viewLegal(p0);
     if (p0 === 'about') return viewLanding();
     if (p0 === 'new') return requireAuth() && viewNew();
-    if (p0 === 'e' && p1) return requireAuth() && viewEvent(p1.toLowerCase().replace(/[^a-z0-9]/g, ''), p2 === 'new');
+    if (p0 === 'e' && p1) return requireAuth() && window.EBTrip.view(p1.toLowerCase().replace(/[^a-z0-9]/g, ''), p2 || '');
+    if (p0 === 'account') return requireAuth() && viewAccount();
     go('#/');
   }
 
