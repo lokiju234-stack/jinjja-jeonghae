@@ -21,7 +21,7 @@
     return Array.from(buf, n => a[n % a.length]).join('');
   }
   const PHOTO_BUCKET = 'trip-photos';
-  const TABLES = ['plan_items', 'checklist_items', 'expenses', 'diary_entries'];
+  const TABLES = ['plan_items', 'plan_segments', 'checklist_items', 'expenses', 'diary_entries'];
   function tableOk(t) { if (!TABLES.includes(t)) throw new Error('허용되지 않은 데이터예요.'); }
 
   function friendlyAuthError(e) {

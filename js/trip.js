@@ -203,22 +203,35 @@
 
     // ═══════════════ 일정표 ═══════════════
     async function tabPlan() {
+      const SEG_COLORS = { green: '초록', blue: '파랑', amber: '노랑', red: '빨강', purple: '보라', teal: '청록' };
       const totalBox = h('div', { class: 'row', style: 'justify-content:space-between' });
-      const list = h('div', { style: 'display:grid;gap:16px' });
+      const segBox = h('div', { class: 'seg-editor' });
+      const grid = h('div', { class: 'plan-grid' });
+      const ideaBox = h('div');
       const copyBtn = h('button', { class: 'btn small', type: 'button' }, '일정표 텍스트 복사');
       const copyFb = h('textarea', { class: 'copybox', readonly: true, hidden: true, 'aria-label': '복사할 일정표' });
       mount(
         h('div', { class: 'panel' }, totalBox,
           h('p', { class: 'hint', text: '장소를 적으면 구글·네이버·카카오 지도로 바로 열 수 있어요. 하루에 장소가 두 곳 이상이면 "하루 동선 보기"로 순서대로 길찾기를 열어요.' })),
-        list, h('div', { class: 'row', style: 'justify-content:flex-end' }, copyBtn), copyFb);
-      let items = [];
+        h('section', { class: 'panel' },
+          h('div', { class: 'panel-head' }, h('h2', { text: '여행 뼈대' }), h('span', { class: 'hint', text: '예: 1~3일차 서울, 3~5일차 부산' })),
+          h('p', { class: 'hint', text: '먼저 어느 날 어디에 있을지 구간을 함께 정하면, 아래 일정표가 구간별 색으로 묶여 보여요. 이동하는 날은 두 구간에 겹쳐 넣으면 돼요.' }),
+          segBox),
+        grid, ideaBox, h('div', { class: 'row', style: 'justify-content:flex-end' }, copyBtn), copyFb);
+      let items = [], segs = [];
       const openForms = new Set();
+      let segFormOpen = false;
       async function load() {
-        try { items = await B.list('plan_items', ev.id); } catch (e) { list.replaceChildren(h('div', { class: 'banner err', text: '일정표를 불러오지 못했어요.' })); return; }
+        try { [items, segs] = await Promise.all([B.list('plan_items', ev.id), B.list('plan_segments', ev.id)]); }
+        catch (e) { grid.replaceChildren(h('div', { class: 'banner err', text: '일정표를 불러오지 못했어요.' })); return; }
         if (!stale()) render();
       }
-      refresh = () => { if (!openForms.size) load(); };
+      refresh = () => { if (!openForms.size && !segFormOpen) load(); };
       const sorted = arr => arr.slice().sort((a, b) => ((a.start_time || '99') > (b.start_time || '99') ? 1 : (a.start_time || '99') < (b.start_time || '99') ? -1 : a.sort - b.sort));
+      const segRange = sg => sg.start_day === sg.end_day ? `${sg.start_day + 1}일차` : `${sg.start_day + 1}~${sg.end_day + 1}일차`;
+      const segDates = sg => (ev.confirmed_start ? ' · ' + (sg.start_day === sg.end_day ? D.short(dayDate(sg.start_day)) : `${D.short(dayDate(sg.start_day))}~${D.short(dayDate(sg.end_day))}`) : '');
+      const visSegs = () => segs.filter(sg => sg.start_day < days).map(sg => ({ ...sg, end_day: Math.min(sg.end_day, days - 1) }))
+        .sort((a, b) => a.start_day - b.start_day || a.end_day - b.end_day || a.sort - b.sort);
       function render() {
         const total = items.reduce((s, x) => s + (x.cost || 0), 0);
         const done = items.filter(x => x.done).length;
@@ -228,20 +241,95 @@
             h('span', {}, '예상 비용 ', h('b', { text: won(total) })),
             members.length > 1 ? h('span', {}, '1인당 ', h('b', { text: won(Math.round(total / members.length)) })) : null,
             h('span', {}, '완료 ', h('b', { text: `${done}/${items.length}` }))));
-        const sections = [];
-        for (let i = 0; i < days; i++) sections.push(daySection(i, sorted(items.filter(x => x.day_index === i))));
-        sections.push(daySection(null, sorted(items.filter(x => x.day_index == null || x.day_index >= days))));
-        list.replaceChildren(...sections);
+        renderSegEditor();
+        // 일차 + 구간 띠
+        const vs = visSegs();
+        const startsAt = new Set(vs.map(sg => sg.start_day));
+        const kids = [];
+        vs.forEach((sg, k) => {
+          // 같은 날 시작하는 구간이 여럿이면 이름표를 옆으로 비켜 놓음
+          const sameStartBefore = vs.slice(0, k).filter(x => x.start_day === sg.start_day).length;
+          kids.push(h('div', { class: `seg-band seg-${sg.color}`, style: `grid-row:${sg.start_day + 1} / ${sg.end_day + 2}` },
+            h('span', { class: 'seg-label', style: sameStartBefore ? `left:${12 + sameStartBefore * 140}px` : null },
+              h('i', { class: 'seg-dot' }), h('b', { text: sg.name }), h('span', { text: segRange(sg) + segDates(sg) }))));
+        });
+        for (let i = 0; i < days; i++) {
+          const here = vs.filter(sg => sg.start_day <= i && sg.end_day >= i);
+          const sec = daySection(i, sorted(items.filter(x => x.day_index === i)), here);
+          sec.style.gridRow = String(i + 1);
+          if (startsAt.has(i)) sec.classList.add('seg-start');
+          if (here.length) sec.classList.add('in-seg');
+          kids.push(sec);
+        }
+        grid.replaceChildren(...kids);
+        ideaBox.replaceChildren(daySection(null, sorted(items.filter(x => x.day_index == null || x.day_index >= days)), []));
       }
-      function daySection(i, arr) {
+      function renderSegEditor() {
+        const chips = segs.slice().sort((a, b) => a.start_day - b.start_day).map(sg => {
+          const canDel = isOwner || sg.created_by === me.id;
+          return h('div', { class: `seg-chip seg-${sg.color}` + (sg.start_day >= days ? ' out' : '') },
+            h('i', { class: 'seg-dot' }), h('b', { text: sg.name }), h('span', { text: segRange(sg) + segDates(sg) }),
+            h('button', { type: 'button', class: 'btn small ghost', onclick: () => openSegForm(sg) }, '수정'),
+            canDel ? h('button', { type: 'button', class: 'btn small ghost', 'aria-label': `${sg.name} 구간 삭제`, onclick: async () => {
+              try { await B.remove('plan_segments', sg.id); segs = segs.filter(x => x.id !== sg.id); notify(); render(); } catch {}
+            } }, '✕') : null);
+        });
+        segBox.replaceChildren(
+          h('div', { class: 'seg-chips' }, chips.length ? chips : h('span', { class: 'hint', text: '아직 구간이 없어요.' })),
+          h('div', { class: 'row' }, h('button', { class: 'btn small', type: 'button', onclick: () => openSegForm(null) }, '+ 구간 추가')));
+      }
+      function openSegForm(sg) {
+        segFormOpen = true;
+        const used = new Set(segs.map(x => x.color));
+        let color = sg ? sg.color : (Object.keys(SEG_COLORS).find(c => !used.has(c)) || 'green');
+        const lastEnd = segs.reduce((m, x) => Math.max(m, x.end_day), -1);
+        const nm = h('input', { type: 'text', maxlength: '20', placeholder: '예: 서울, 부산, 제주 동쪽', value: sg ? sg.name : '' });
+        const opt = sel => [...Array(days).keys()].map(d => { const o = h('option', { value: String(d), text: dayLabel(d) }); if (d === sel) o.selected = true; return o; });
+        const from = h('select', {}, opt(sg ? Math.min(sg.start_day, days - 1) : Math.max(0, Math.min(lastEnd, days - 1))));
+        const to = h('select', {}, opt(sg ? Math.min(sg.end_day, days - 1) : Math.min(days - 1, Math.max(0, lastEnd) + 2)));
+        const sw = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': '구간 색' });
+        const drawSw = () => sw.replaceChildren(...Object.entries(SEG_COLORS).map(([k, v]) => h('button', {
+          type: 'button', role: 'radio', class: `swatch seg-${k}`, 'aria-checked': String(color === k), 'aria-label': v, title: v,
+          onclick: () => { color = k; drawSw(); }
+        })));
+        drawSw();
+        const err = h('p', { class: 'err-text', hidden: true });
+        const save = h('button', { class: 'btn primary small', type: 'submit' }, sg ? '저장' : '추가');
+        const close = () => { segFormOpen = false; render(); };
+        const f = h('form', { class: 'item-form', novalidate: true },
+          h('div', { class: 'grid-form' },
+            h('label', { class: 'f wide' }, '구간 이름', nm),
+            h('label', { class: 'f' }, '시작', from),
+            h('label', { class: 'f' }, '끝', to)),
+          h('div', { class: 'ctrls' }, h('span', { class: 'eyebrow', text: '색' }), sw),
+          err, h('div', { class: 'row' }, save, h('button', { class: 'btn small ghost', type: 'button', onclick: close }, '취소')));
+        f.addEventListener('submit', async e => {
+          e.preventDefault(); err.hidden = true;
+          const name = nm.value.trim();
+          const sd = parseInt(from.value, 10), ed = parseInt(to.value, 10);
+          if (!name) { err.textContent = '구간 이름을 적어 주세요.'; err.hidden = false; return; }
+          if (ed < sd) { err.textContent = '끝나는 날이 시작하는 날보다 빨라요.'; err.hidden = false; return; }
+          save.disabled = true;
+          try {
+            const row = { name, start_day: sd, end_day: ed, color };
+            if (sg) Object.assign(sg, await B.update('plan_segments', sg.id, row));
+            else segs.push(await B.insert('plan_segments', { ...row, event_id: ev.id, sort: Date.now() }));
+            notify(); close();
+          } catch (ex) { err.textContent = '저장하지 못했어요: ' + ex.message; err.hidden = false; save.disabled = false; }
+        });
+        segBox.replaceChildren(f);
+        setTimeout(() => nm.focus(), 0);
+      }
+      function daySection(i, arr, here) {
         const places = arr.map(x => x.place).filter(Boolean);
         const cost = arr.reduce((s, x) => s + (x.cost || 0), 0);
         const addBox = h('div');
         const addBtn = h('button', { class: 'btn small', type: 'button', onclick: () => { addBox.replaceChildren(itemForm(null, i, addBox)); addBtn.hidden = true; } }, '+ 일정 추가');
         addBox.addEventListener('formclosed', () => { addBtn.hidden = false; });
+        const tags = here.length ? h('span', { class: 'day-segs' }, here.flatMap((sg, k) => [k ? h('span', { class: 'arrow', text: '→' }) : null, h('span', { class: `seg-tag seg-${sg.color}`, text: sg.name })])) : null;
         return h('section', { class: 'panel day-sec' + (i == null ? ' idea' : '') },
           h('div', { class: 'panel-head' },
-            h('h3', { text: i == null ? '아이디어 보관함' : dayLabel(i) }),
+            h('div', { class: 'row', style: 'gap:8px' }, h('h3', { text: i == null ? '아이디어 보관함' : dayLabel(i) }), tags),
             h('span', { class: 'hint', text: i == null ? '날짜를 정하지 않은 후보들' : (cost ? won(cost) : '') })),
           arr.length ? h('ol', { class: 'items' }, arr.map(itemRow)) : h('p', { class: 'hint', text: i == null ? '가 보고 싶은 곳, 먹고 싶은 것을 적어 두세요.' : '아직 일정이 없어요.' }),
           h('div', { class: 'row' }, addBtn,
@@ -331,7 +419,9 @@
       }
       copyBtn.onclick = () => {
         const lines = [`[${ev.title}] 일정표 (${D.tripSummary(ev).label})`];
+        const vs = visSegs();
         for (let i = 0; i < days; i++) {
+          vs.filter(sg => sg.start_day === i).forEach(sg => lines.push('', `◆ ${sg.name} (${segRange(sg)}${segDates(sg)})`));
           const arr = sorted(items.filter(x => x.day_index === i)); if (!arr.length) continue;
           lines.push('', `■ ${dayLabel(i)}`);
           arr.forEach(x => lines.push(`- ${x.start_time ? x.start_time.slice(0, 5) + ' ' : ''}${x.title}${x.place ? ' @' + x.place : ''}${x.cost ? ' (' + won(x.cost) + ')' : ''}`));
@@ -339,7 +429,7 @@
         lines.push('', `예상 비용 합계: ${won(items.reduce((s, x) => s + (x.cost || 0), 0))}`, shareUrl(code));
         copyText(lines.join('\n'), copyBtn, copyFb);
       };
-      list.replaceChildren(h('div', { class: 'empty', text: '일정표를 불러오는 중…' }));
+      grid.replaceChildren(h('div', { class: 'empty', text: '일정표를 불러오는 중…' }));
       load();
     }
 

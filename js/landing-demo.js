@@ -12,13 +12,13 @@
     { key: 'money', step: '정산', title: '정산은 자동으로', body: '누가 얼마 냈는지만 적으면, 송금 횟수가 가장 적게 "누가 누구에게 얼마"를 계산해요.' },
     { key: 'diary', step: '다이어리', title: '추억은 다이어리에', body: '사진과 글로 여행을 남기고 멤버끼리 함께 봐요. 사진 속 위치 정보는 올릴 때 지워져요.' },
   ];
-  const DURATION = 6500;
+  const DURATION = 9500;
 
   function mount(host) {
     const U = window.EBUI;
     const { h } = U;
     const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let idx = 0, timer = null, playing = !reduce, startedAt = 0, remaining = DURATION, alive = true;
+    let idx = 0, timer = null, swapTimer = null, playing = !reduce, startedAt = 0, remaining = DURATION, alive = true;
     const typeTimers = [];
 
     const stage = h('div', { class: 'dp-stage', 'aria-live': 'polite' });
@@ -64,21 +64,21 @@
         const cell = h('div', { class: 'dp-day' + (wd === 0 ? ' sun' : wd === 6 ? ' sat' : '') + (d === 15 || d === 16 ? ' pick' : '') },
           h('span', { class: 'dn', text: d }));
         const heat = h('span', { class: 'dp-heat' }); heat.style.setProperty('--r', ratio);
-        stagger(heat, 0, 2900, 0); cell.prepend(heat);
+        stagger(heat, 0, 4600, 0); cell.prepend(heat);
         PEOPLE.forEach((p, pi) => {
           if (BUSY[pi].includes(d)) {
             const m = h('span', { class: 'dp-x', text: '✕' }); m.style.color = p.c;
-            stagger(m, markN++, 300, 90); cell.append(m);
+            stagger(m, markN++, 700, 140); cell.append(m);
           }
         });
         cal.append(cell);
       }
-      const who = h('div', { class: 'dp-who' }, PEOPLE.map((p, i) => stagger(h('span', { class: 'dp-av' }, h('i', { style: `background:${p.c}`, text: p.n[0] }), p.n), i, 100, 160)));
+      const who = h('div', { class: 'dp-who' }, PEOPLE.map((p, i) => stagger(h('span', { class: 'dp-av' }, h('i', { style: `background:${p.c}`, text: p.n[0] }), p.n), i, 150, 220)));
       const rec = stagger(h('div', { class: 'dp-rec' },
         h('span', { class: 'rk', text: '1' }),
         h('div', {}, h('b', { text: '1/15(금) ~ 1/16(토) · 1박 2일' }), h('small', { text: '4명 모두 가능해요' })),
-        h('span', { class: 'dp-pill', text: '전원 가능' })), 0, 3500);
-      const stamp = stagger(h('div', { class: 'dp-stamp dates', text: '날짜 확정!' }), 0, 4600);
+        h('span', { class: 'dp-pill', text: '전원 가능' })), 0, 5600);
+      const stamp = stagger(h('div', { class: 'dp-stamp dates', text: '날짜 확정!' }), 0, 7000);
       return h('div', { class: 'dp-scene' }, who, cal, rec, stamp);
     }
 
@@ -91,13 +91,15 @@
         ['19:00', 'stay', '숙소', '숙소 체크인', '성산 게스트하우스', '60,000원'],
       ];
       return h('div', { class: 'dp-scene' },
-        h('div', { class: 'dp-dayhead' }, h('b', { text: '1일차 · 1/15(금)' }), stagger(h('span', { class: 'dp-total', text: '예상 160,000원' }), 0, 2600)),
+        stagger(h('div', { class: 'dp-band seg-green' },
+          h('span', { class: 'dp-band-label' }, h('i'), h('b', { text: '제주 동쪽' }), h('span', { text: '1~2일차' })),
+        h('div', { class: 'dp-dayhead' }, h('b', { text: '1일차 · 1/15(금)' }), stagger(h('span', { class: 'dp-total', text: '예상 160,000원' }), 0, 4400)),
         h('ol', { class: 'dp-items' }, items.map((it, i) => stagger(h('li', {},
           h('span', { class: 'tm', text: it[0] }),
           h('div', {}, h('div', { class: 'tt' }, h('span', { class: 'cat cat-' + it[1], text: it[2] }), h('b', { text: it[3] })),
             h('div', { class: 'pl' }, h('span', { text: it[4] }), h('span', { class: 'mapchip', text: '구글' }), h('span', { class: 'mapchip', text: '네이버' }), h('span', { class: 'mapchip', text: '카카오' }))),
-          h('span', { class: 'cost', text: it[5] })), i, 250, 550))),
-        stagger(h('div', { class: 'dp-route' }, h('span', { class: 'pin', text: '●' }), '하루 동선 보기 · 김포공항 → 제주시 → 성산일출봉 → 숙소'), 0, 3000));
+          h('span', { class: 'cost', text: it[5] })), i, 900, 800)))), 0, 150),
+        stagger(h('div', { class: 'dp-route' }, h('span', { class: 'pin', text: '●' }), '하루 동선 보기 · 김포공항 → 제주시 → 성산일출봉 → 숙소'), 0, 4900));
     }
 
     // ── 장면 3: 정산
@@ -105,10 +107,10 @@
       const exp = [['숙소', '민지', '240,000원'], ['렌터카', '준호', '120,000원'], ['흑돼지 저녁', '서연', '80,000원']];
       const tx = [['도윤', '민지', '110,000원'], ['서연', '민지', '20,000원'], ['서연', '준호', '10,000원']];
       return h('div', { class: 'dp-scene' },
-        h('ul', { class: 'dp-exp' }, exp.map((e, i) => stagger(h('li', {}, h('b', { text: e[0] }), h('small', { text: `${e[1]} 냄 · 4명이 나눔` }), h('span', { text: e[2] })), i, 200, 450))),
-        stagger(h('div', { class: 'dp-sum' }, '총 440,000원 · 1인당 110,000원'), 0, 1700),
-        h('ul', { class: 'dp-tx' }, tx.map((t, i) => stagger(h('li', {}, h('b', { text: t[0] }), h('span', { class: 'arrow', text: '→' }), h('b', { text: t[1] }), h('span', { class: 'amt', text: t[2] })), i, 2400, 500))),
-        stagger(h('div', { class: 'dp-stamp ok', text: '송금 3번이면 끝' }), 0, 4300));
+        h('ul', { class: 'dp-exp' }, exp.map((e, i) => stagger(h('li', {}, h('b', { text: e[0] }), h('small', { text: `${e[1]} 냄 · 4명이 나눔` }), h('span', { text: e[2] })), i, 300, 700))),
+        stagger(h('div', { class: 'dp-sum' }, '총 440,000원 · 1인당 110,000원'), 0, 2700),
+        h('ul', { class: 'dp-tx' }, tx.map((t, i) => stagger(h('li', {}, h('b', { text: t[0] }), h('span', { class: 'arrow', text: '→' }), h('b', { text: t[1] }), h('span', { class: 'amt', text: t[2] })), i, 3600, 800))),
+        stagger(h('div', { class: 'dp-stamp ok', text: '송금 3번이면 끝' }), 0, 6600));
     }
 
     // ── 장면 4: 다이어리
@@ -122,16 +124,16 @@
         const t0 = setTimeout(function tick() {
           if (!alive) return;
           bodyEl.textContent = text.slice(0, ++i);
-          if (i < text.length) typeTimers.push(setTimeout(tick, 45));
-        }, 1300);
+          if (i < text.length) typeTimers.push(setTimeout(tick, 70));
+        }, 2000);
         typeTimers.push(t0);
       }
       return h('div', { class: 'dp-scene' },
         stagger(h('div', { class: 'dp-diary' },
           h('div', { class: 'dp-dhead' }, h('span', { text: '1월 15일 · 민지' }), h('span', { class: 'dp-mood', text: '최고' })),
           h('b', { text: '1일차, 바람 속의 일출봉' }),
-          photo, bodyEl), 0, 150),
-        stagger(h('div', { class: 'dp-likes' }, PEOPLE.slice(1).map(p => h('i', { style: `background:${p.c}`, text: p.n[0] })), '준호, 서연, 도윤도 봤어요'), 0, 5200));
+          photo, bodyEl), 0, 200),
+        stagger(h('div', { class: 'dp-likes' }, PEOPLE.slice(1).map(p => h('i', { style: `background:${p.c}`, text: p.n[0] })), '준호, 서연, 도윤도 봤어요'), 0, 7600));
     }
 
     const RENDER = { dates: sceneDates, plan: scenePlan, money: sceneMoney, diary: sceneDiary };
@@ -140,10 +142,19 @@
       idx = (i + SCENES.length) % SCENES.length;
       typeTimers.splice(0).forEach(clearTimeout);
       const s = SCENES[idx];
-      stage.replaceChildren(RENDER[s.key]());
-      stage.classList.toggle('static', reduce);
-      capTitle.textContent = `${idx + 1}. ${s.title}`;
-      capBody.textContent = s.body;
+      const swap = () => {
+        if (!alive) return;
+        stage.replaceChildren(RENDER[s.key]());
+        stage.classList.toggle('static', reduce);
+        capTitle.textContent = `${idx + 1}. ${s.title}`;
+        capBody.textContent = s.body;
+        capTitle.parentElement.classList.remove('leaving');
+      };
+      const cur = stage.firstElementChild;
+      if (cur && !reduce) {
+        cur.classList.add('leaving'); capTitle.parentElement.classList.add('leaving');
+        clearTimeout(swapTimer); swapTimer = setTimeout(swap, 420);
+      } else swap();
       drawSteps();
       if (playing) schedule(DURATION);
       if (user) host.querySelector('.dp-step.on')?.focus({ preventScroll: true });
@@ -164,7 +175,7 @@
     };
     document.addEventListener('visibilitychange', onVis);
     go(0);
-    return () => { alive = false; clearTimeout(timer); typeTimers.forEach(clearTimeout); document.removeEventListener('visibilitychange', onVis); };
+    return () => { alive = false; clearTimeout(timer); clearTimeout(swapTimer); typeTimers.forEach(clearTimeout); document.removeEventListener('visibilitychange', onVis); };
   }
 
   window.EBLanding = { mount };

@@ -148,7 +148,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-vis
 .day .num{font-family:var(--f-num);font-weight:600;font-size:14px;line-height:1}
 .day.sun .num,.day.hol .num{color:var(--sun)} .day.sat .num{color:var(--sat)}
 .day .tag{font-size:11px;font-weight:700;line-height:1}
-.day .holn{position:absolute;top:5px;right:5px;font-size:9.5px;color:var(--sun);font-weight:600;max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.day > *{order:2}
+.day .num{order:0}
+.day .holn{order:1;position:static;margin-top:3px;font-size:9.5px;line-height:1.1;color:var(--sun);font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .edit .day.st-ok.set{background:var(--ok);border-color:var(--ok);color:#fff}
 .edit .day.st-no.set{background:var(--no);border-color:var(--no);color:#fff}
 .edit .day.st-maybe.set{background:var(--maybe);border-color:var(--maybe);color:#1d1606}
@@ -431,3 +433,50 @@ ul.plain{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
 @media (max-width:420px){.dp-stage{min-height:430px}}
 .dp-stage{min-height:452px}
 @media (max-width:420px){.dp-stage{min-height:446px}}
+
+/* ── 일정표 뼈대(구간) ── */
+.seg-green{--sc:var(--ok)}.seg-red{--sc:var(--no)}.seg-blue{--sc:var(--accent)}.seg-amber{--sc:var(--maybe)}.seg-purple{--sc:#7c5cd6}.seg-teal{--sc:#1a9aa6}
+.seg-chips{display:flex;flex-wrap:wrap;gap:8px}
+.seg-chip{display:inline-flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:999px;background:color-mix(in oklab,var(--sc) 12%,var(--surface));border:1px solid color-mix(in oklab,var(--sc) 45%,transparent);font-size:13.5px;max-width:100%}
+.seg-chip > span{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.seg-chip.out{opacity:.5}
+.seg-chip .btn{padding:3px 8px;font-size:12px}
+.seg-dot{flex:none;width:10px;height:10px;border-radius:50%;background:var(--sc)}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:50%;background:var(--sc);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.swatch[aria-checked="true"]{box-shadow:0 0 0 2px var(--ink)}
+.plan-grid{display:grid;grid-template-columns:minmax(0,1fr);position:relative}
+.plan-grid > .day-sec{grid-column:1;position:relative;z-index:1;margin:8px 0}
+.plan-grid > .day-sec.in-seg{margin:10px 14px 14px}
+.plan-grid > .day-sec.seg-start{margin-top:50px}
+.seg-band{grid-column:1;position:relative;z-index:0;border-radius:20px;background:color-mix(in oklab,var(--sc) 11%,transparent);border:1.5px solid color-mix(in oklab,var(--sc) 42%,transparent);transition:background .2s}
+.seg-label{position:absolute;top:11px;left:14px;display:inline-flex;gap:8px;align-items:center;padding:5px 12px 5px 10px;border-radius:999px;background:var(--sc);color:#fff;font-size:13px;white-space:nowrap;box-shadow:0 4px 12px -6px var(--sc);max-width:calc(100% - 28px);overflow:hidden;text-overflow:ellipsis}
+.seg-label .seg-dot{background:#fff;opacity:.9;width:8px;height:8px}
+.seg-label span{opacity:.9;font-size:12px}
+.seg-amber .seg-label{color:#1d1606}.seg-amber .seg-label .seg-dot{background:#1d1606}
+.day-segs{display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap}
+.day-segs .arrow{color:var(--muted);font-size:12px}
+.seg-tag{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;background:color-mix(in oklab,var(--sc) 18%,transparent);color:color-mix(in oklab,var(--sc) 75%,var(--ink))}
+@media (max-width:520px){.plan-grid > .day-sec.in-seg{margin:8px 8px 10px}.seg-label{font-size:12px}}
+
+/* 예시 애니메이션: 더 천천히, 부드럽게 */
+.dp-scene [style*="animation-delay"]{animation-duration:.85s;animation-timing-function:cubic-bezier(.22,1,.36,1)}
+@keyframes dpUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes dpPop{0%{opacity:0;transform:scale(1.5)}100%{opacity:1;transform:scale(1)}}
+.dp-x{animation-duration:.6s!important}
+.dp-heat{animation-duration:1.2s!important}
+.dp-stamp{animation-duration:.7s!important}
+.dp-day.pick{animation:dpPick .6s 5.6s ease forwards}
+@keyframes dpPick{from{outline-color:transparent}to{outline-color:var(--accent)}}
+.dp-scene{animation:dpSceneIn .6s cubic-bezier(.22,1,.36,1) both}
+.dp-scene.leaving{animation:dpSceneOut .42s ease forwards}
+@keyframes dpSceneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes dpSceneOut{to{opacity:0;transform:translateY(-6px)}}
+.dp-caption{transition:opacity .4s ease}
+.dp-caption.leaving{opacity:0}
+.dp-band{animation-name:dpFade;position:relative;display:grid;gap:8px;padding:40px 10px 10px;border-radius:14px;background:color-mix(in oklab,var(--sc) 11%,transparent);border:1.5px solid color-mix(in oklab,var(--sc) 42%,transparent)}
+.dp-band-label{position:absolute;top:9px;left:10px;display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;background:var(--sc);color:#fff;font-size:12px}
+.dp-band-label i{width:7px;height:7px;border-radius:50%;background:#fff}
+.dp-band-label span{opacity:.9;font-size:11px}
+.dp-stage.static .dp-scene{animation:none}
+@media (prefers-reduced-motion: reduce){.dp-scene,.dp-scene.leaving{animation:none}.dp-caption{transition:none}}
