@@ -204,6 +204,7 @@
     // ═══════════════ 일정표 ═══════════════
     async function tabPlan() {
       const SEG_COLORS = { green: '초록', blue: '파랑', amber: '노랑', red: '빨강', purple: '보라', teal: '청록' };
+      const SEG_VAR = { green: 'var(--ok)', blue: 'var(--accent)', amber: 'var(--maybe)', red: 'var(--no)', purple: '#7c5cd6', teal: '#1a9aa6' };
       const totalBox = h('div', { class: 'row', style: 'justify-content:space-between' });
       const segBox = h('div', { class: 'seg-editor' });
       const grid = h('div', { class: 'plan-grid' });
@@ -249,7 +250,10 @@
         vs.forEach((sg, k) => {
           // 같은 날 시작하는 구간이 여럿이면 이름표를 옆으로 비켜 놓음
           const sameStartBefore = vs.slice(0, k).filter(x => x.start_day === sg.start_day).length;
-          kids.push(h('div', { class: `seg-band seg-${sg.color}`, style: `grid-row:${sg.start_day + 1} / ${sg.end_day + 2}` },
+          // 앞 구간과 겹치는 이동일: 앞 구간 색에서 이 구간 색으로 자연스럽게 넘어가게
+          const prev = vs.slice(0, k).reverse().find(x => x.start_day < sg.start_day && x.end_day >= sg.start_day);
+          const bandStyle = `grid-row:${sg.start_day + 1} / ${sg.end_day + 2}` + (prev ? `;--sc-prev:${SEG_VAR[prev.color]}` : '');
+          kids.push(h('div', { class: `seg-band seg-${sg.color}` + (prev ? ' after' : ''), style: bandStyle },
             h('span', { class: 'seg-label', style: sameStartBefore ? `left:${12 + sameStartBefore * 140}px` : null },
               h('i', { class: 'seg-dot' }), h('b', { text: sg.name }), h('span', { text: segRange(sg) + segDates(sg) }))));
         });

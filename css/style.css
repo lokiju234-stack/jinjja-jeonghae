@@ -480,3 +480,9 @@ ul.plain{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px}
 .dp-band-label span{opacity:.9;font-size:11px}
 .dp-stage.static .dp-scene{animation:none}
 @media (prefers-reduced-motion: reduce){.dp-scene,.dp-scene.leaving{animation:none}.dp-caption{transition:none}}
+/* 구간 띠: 페이지 배경과 섞은 불투명한 색이라, 뒤 구간이 앞 구간을 덮으며 깔끔하게 이어짐 */
+.seg-band{background:color-mix(in oklab,var(--sc) 12%,var(--bg))}
+.seg-band.after{background:linear-gradient(180deg,color-mix(in oklab,var(--sc-prev) 12%,var(--bg)) 0,color-mix(in oklab,var(--sc) 12%,var(--bg)) 230px);border-top-color:color-mix(in oklab,var(--sc-prev) 42%,transparent)}
+.dp-stamp.dates{position:static;justify-self:end;margin:-30px 10px 0 0;font-size:19px;z-index:2}
+.dp-rec{padding-right:10px}
+@media (max-width:420px){.dp-stamp.dates{margin-top:-22px;font-size:16px}}
