@@ -84,20 +84,7 @@
 
   // ───────── landing ─────────
   function viewLanding() {
-    // 예시 달력 (고정 데이터, "예시" 표기)
-    const sample = h('div', { class: 'cal heat' });
-    D.DOW.forEach((w, i) => sample.append(h('div', { class: 'dow' + (i === 0 ? ' sun' : i === 6 ? ' sat' : ''), text: w })));
-    for (let i = 0; i < 5; i++) sample.append(h('div'));
-    const pattern = [6, 4, 7, 6, 5, 3, 4, 6, 5, 7, 7, 6, 6, 2, 8, 8, 6, 7, 5, 5, 4, 3, 5, 6, 7, 7, 4, 2, 5, 6, 7];
-    pattern.forEach((n, i) => {
-      const d = i + 1, wd = (5 + i) % 7;
-      const ratio = n / 8;
-      const cell = h('div', { class: 'day' + (wd === 0 ? ' sun' : wd === 6 ? ' sat' : '') + (d === 15 || d === 16 ? ' inrange' : '') },
-        h('span', { class: 'num', text: d }), h('span', { class: 'cnt', text: `${n}/8` }),
-        h('span', { class: 'bar' }, h('i', { class: 'b-ok', style: `width:${ratio * 100}%` })));
-      cell.style.background = `color-mix(in oklab, var(--ok) ${Math.round(ratio * 38)}%, var(--surface))`;
-      sample.append(cell);
-    });
+    const demoHost = h('div');
     setPage(
       h('section', { class: 'hero' },
         h('div', {},
@@ -107,16 +94,12 @@
           h('div', { class: 'row' },
             h('a', { class: 'btn primary', href: me ? '#/new' : '#/signup' }, '무료로 여행 만들기'),
             h('a', { class: 'btn', href: me ? '#/' : '#/login' }, me ? '내 여행 보기' : '로그인'))),
-        h('div', { class: 'demo-cal' },
-          h('div', { class: 'row', style: 'justify-content:space-between' }, h('b', { text: '1월 팀 엠티 · 8명 응답' }), h('span', { class: 'tag-ex', text: '예시' })),
-          sample,
-          h('div', { class: 'rec top', style: 'cursor:default' }, h('span', { class: 'rk', text: '1' }),
-            h('div', {}, h('div', { class: 'when', text: '1/15(금) ~ 1/16(토)' }), h('div', { class: 'why', text: '8명 모두 가능해요' })),
-            h('span', { class: 'pill all', text: '전원 가능' })))),
+        demoHost),
       h('ol', { class: 'steps' },
         h('li', {}, h('span', { class: 'n', text: 'STEP 1' }), h('b', { text: '여행 만들고 초대' }), h('span', { text: '날짜 투표, 날짜 확정, 날짜 미정 중에 고르고 초대 링크를 단톡방에 보내요.' })),
         h('li', {}, h('span', { class: 'n', text: 'STEP 2' }), h('b', { text: '되는 날 자동 추천' }), h('span', { text: '각자 안 되는 날만 표시하면 모두 되는 날을 찾아 주고, 방장이 확정해요.' })),
         h('li', {}, h('span', { class: 'n', text: 'STEP 3' }), h('b', { text: '함께 계획하고 기록' }), h('span', { text: '일차별 일정표와 지도, 준비물, 정산, 사진 다이어리를 멤버들과 같이 써요.' }))));
+    if (window.EBLanding) addCleanup(window.EBLanding.mount(demoHost));
   }
 
   // ───────── auth screens ─────────
